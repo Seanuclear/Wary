@@ -14,14 +14,14 @@ No cookies. No ads. No tracking. There are no accounts. A visitor's answers stay
 
 ## How it works
 
-Built with the help of an AI assistant (Claude). The editor chooses and checks the levels and is responsible for the wording.
+The levels and the change log are calculated automatically from official data. The editor maintains the rules and is responsible for what the site says.
 
 A static site, rebuilt by GitHub Actions every 30 minutes and whenever a file changes.
 
 - `editorial/` holds the editor's baseline levels, change log, notices and signals (short summaries in the editor's own words, each linking to the original).
 - Official, open-licensed sources are read automatically: the MI5 threat level, GOV.UK, the NCSC, the Met Office, GOV.UK Emergency Alerts, Elexon grid notices and space weather levels (NOAA).
 - Areas rise to Elevated by themselves when two or more different official statements in 30 days name hostile activity affecting them, and fall back as the statements age out. Terrorism follows the MI5 level.
-- Press feeds are not used. Nothing from the press can move a level.
+- Press feeds are not used, apart from an optional strip of BBC headlines and links that is off by default and never changes a level. Nothing from the press can move a level.
 - `src/` is the page. `tools/` builds it. `tests/` run before every publish.
 
 ## Sources and attribution
