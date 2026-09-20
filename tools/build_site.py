@@ -51,6 +51,13 @@ SCEN = {  # level -> (terror level, notice, {area: (level, status)}). ILLUSTRATI
 }
 NAMES = {1: "Routine", 2: "Aware", 3: "Elevated", 4: "High", 5: "Critical"}
 
+SPACE = {1: ("clear", "Quiet to moderate", "No strong storm expected. GPS and radio should behave normally."), 2: ("clear", "Quiet to moderate", "No strong storm expected. GPS and radio should behave normally."),
+         3: ("clear", "Quiet to moderate", "No strong storm expected. GPS and radio should behave normally."),
+         4: ("notice", "Strong storm (G3)", "Expected or under way. It can disturb GPS and radio, and rarely the power grid. Check the Met Office before assuming a hostile cause."),
+         5: ("clear", "Quiet to moderate", "No strong storm expected. GPS and radio should behave normally.")}
+INTERNET = {4: ("notice", "Disruption reported: cable damage", "Traffic dropped on some UK networks. Disruptions are often local or short-lived. Check the source."),
+            5: ("notice", "Disruption reported: cable damage", "Traffic dropped on some UK networks. Disruptions are often local or short-lived. Check the source.")}
+CLEAR_NET = ("clear", "None in 24 hours", "No UK internet disruptions reported.")
 # Illustrative Live checks per scenario: (alerts, grid). The terror check follows the scenario's threat level.
 CHECKS = {
     1: (("clear", "None current", "Sent by the emergency services and government. None are live."), ("clear", "No notices in 24 hours", "Electricity margins look normal.")),
@@ -86,6 +93,10 @@ def scenario_feeds(snap):
              "detail": publish.TERROR_TEXT[terror], "url": "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels", "source": "MI5", "checked": now_iso},
             {"id": "grid", "name": "Electricity grid notices", "state": grid[0], "text": grid[1], "detail": grid[2], "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS", "checked": now_iso,
              "extra": {"text": "Gas notices: National Gas", "url": publish.GAS_URL}},
+            {"id": "internet", "name": "UK internet", "state": INTERNET.get(lvl, CLEAR_NET)[0], "text": INTERNET.get(lvl, CLEAR_NET)[1], "detail": INTERNET.get(lvl, CLEAR_NET)[2],
+             "url": "https://radar.cloudflare.com/outage-center", "source": "Cloudflare Radar", "checked": now_iso, "extra": {"text": "Cable map: TeleGeography", "url": "https://www.submarinecablemap.com/"}},
+            {"id": "space", "name": "Space weather", "state": SPACE[lvl][0], "text": SPACE[lvl][1], "detail": SPACE[lvl][2], "url": publish.MET_SPACE_URL, "source": "Met Office", "checked": now_iso,
+             "extra": {"text": "Levels from NOAA", "url": "https://www.swpc.noaa.gov/"}},
         ]
         top = max(a["level"] for a in f["areas"])
         f["overall"] = {"level": top, "name": NAMES[top], "drivers": [a["id"] for a in f["areas"] if a["level"] == top]}

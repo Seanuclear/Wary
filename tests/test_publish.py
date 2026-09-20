@@ -14,6 +14,15 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 import publish  # noqa: E402
 
 
+def fresh_baseline():
+    """The shipped baseline with every review date set to today, so tests never depend on the calendar."""
+    b = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+    today = publish.now_utc().strftime("%Y-%m-%d")
+    for a in b["areas"].values():
+        a["as_of"] = today
+    return b
+
+
 def rss(items):
     body = "".join(f"<item><title>{t}</title><link>https://example.test/{abs(hash(t)) % 10**8}</link><description>{d}</description>"
                    f"<pubDate>{format_datetime(w)}</pubDate></item>" for t, d, w in items)
@@ -33,7 +42,7 @@ class Build(unittest.TestCase):
         put("met-se.xml", rss([("Yellow warning of wind in London and South East England", "Valid.", w(1)), ("No warnings", "", w(1))]))
         put("met-UK.xml", rss([]))
         self.doc = publish.load_json(os.path.join(ROOT, "official_sources.json"))
-        self.baseline = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        self.baseline = fresh_baseline()
         self.signals = publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
         self.now = n
         self.official = publish.gather_official(self.doc, self.tmp, n)
@@ -99,7 +108,7 @@ def urlparse_host(u):
 
 class Editorial(unittest.TestCase):
     def setUp(self):
-        self.baseline = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        self.baseline = fresh_baseline()
         self.good = dict(publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"][0])
 
     def problems(self, **chg):
@@ -173,14 +182,14 @@ class Checks(unittest.TestCase):
         self.assertEqual(publish.check_grid(os.path.join(self.tmp, "nothing"), self.now)["state"], "unknown")
 
     def test_terror_states(self):
-        base = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        base = fresh_baseline()
         for lvl, want in [("MODERATE", "clear"), ("SUBSTANTIAL", "notice"), ("SEVERE", "notice"), ("CRITICAL", "alert")]:
             self.assertEqual(publish.check_terror({"terror": lvl}, base, self.now)["state"], want)
         c = publish.check_terror({"terror": None}, base, self.now)
         self.assertIn("live check is unavailable", c["detail"])
 
     def test_strip_order_and_editorial_only_build_has_none(self):
-        base = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        base = fresh_baseline()
         self.assertEqual(publish.build_checks({}, base, self.now), [])
         self.put("alerts.html", "no current alerts"); self.put("grid.json", json.dumps({"data": []}))
         off = {"terror": "SEVERE", "checks": {"alerts": publish.check_alerts(self.tmp, self.now), "grid": publish.check_grid(self.tmp, self.now)}}
@@ -197,15 +206,19 @@ class Mi5Guard(unittest.TestCase):
         page = b"<ul><li>CRITICAL means an attack is expected imminently</li><li>SEVERE means highly likely</li></ul>"
         level, contextual = publish.read_terror_level(page)
         self.assertEqual((level, contextual), ("CRITICAL", False))
-        self.assertFalse(publish.accept_terror(level, contextual, "SEVERE"))
+        self.assertFalse(publish.accept_terror(level, contextual, "SEVERE")[0])
 
     def test_loose_match_can_only_confirm(self):
-        self.assertTrue(publish.accept_terror("SEVERE", False, "SEVERE"))
+        self.assertTrue(publish.accept_terror("SEVERE", False, "SEVERE")[0])
 
-    def test_big_jumps_are_refused_but_one_step_is_accepted(self):
-        self.assertFalse(publish.accept_terror("LOW", True, "SEVERE"))
-        self.assertTrue(publish.accept_terror("CRITICAL", True, "SEVERE"))
-        self.assertTrue(publish.accept_terror("SUBSTANTIAL", True, "SEVERE"))
+    def test_big_jumps_wait_for_the_hold_but_one_step_is_accepted(self):
+        now = publish.now_utc()
+        self.assertFalse(publish.accept_terror("LOW", True, "SEVERE", {"first_seen": {}}, now)[0])
+        self.assertEqual(publish.accept_terror("LOW", True, "SEVERE", {"first_seen": {}}, now)[1], "terror-jump:LOW")
+        seen = {"first_seen": {"terror-jump:LOW": publish.iso(now - timedelta(hours=7))}}
+        self.assertTrue(publish.accept_terror("LOW", True, "SEVERE", seen, now)[0])
+        self.assertTrue(publish.accept_terror("CRITICAL", True, "SEVERE")[0])
+        self.assertTrue(publish.accept_terror("SUBSTANTIAL", True, "SEVERE")[0])
 
     def test_bad_reading_falls_back_and_is_reported(self):
         tmp = tempfile.mkdtemp()
@@ -219,7 +232,7 @@ class Mi5Guard(unittest.TestCase):
 
 class HistoryAndReview(unittest.TestCase):
     def setUp(self):
-        self.base = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        self.base = fresh_baseline()
         self.hist = publish.load_json(os.path.join(ROOT, "editorial", "history.json"))["entries"]
 
     def test_shipped_history_is_valid(self):
@@ -247,12 +260,58 @@ class HistoryAndReview(unittest.TestCase):
         self.assertEqual(len(f["history"]), len(self.hist))
 
 
+class SpaceWeather(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.now = publish.now_utc()
+
+    def put(self, obj):
+        with open(os.path.join(self.tmp, "space.json"), "w") as f:
+            json.dump(obj, f)
+
+    def scales(self, latest, day_max, forecast):
+        return {"-1": {"G": {"Scale": str(latest), "Text": "x"}}, "0": {"G": {"Scale": str(day_max), "Text": "x"}}, "1": {"G": {"Scale": str(forecast), "Text": "x"}}}
+
+    def test_quiet_is_clear_only_when_a_value_was_read(self):
+        self.put(self.scales(0, 1, 2))
+        c = publish.check_space(self.tmp, self.now)
+        self.assertEqual((c["state"], c["text"]), ("clear", "Quiet to moderate"))
+
+    def test_strong_storm_forecast_is_a_notice(self):
+        self.put(self.scales(1, 1, 3))
+        c = publish.check_space(self.tmp, self.now)
+        self.assertEqual(c["state"], "notice")
+        self.assertIn("G3", c["text"])
+        self.assertIn("before assuming a hostile cause", c["detail"])
+
+    def test_extreme_storm_is_an_alert(self):
+        self.put(self.scales(5, 5, 4))
+        self.assertEqual(publish.check_space(self.tmp, self.now)["state"], "alert")
+
+    def test_unreadable_values_are_unknown_not_clear(self):
+        self.put({"-1": {"G": {"Scale": None}}, "0": {}, "1": {"G": {"Scale": "n/a"}}})
+        self.assertEqual(publish.check_space(self.tmp, self.now)["state"], "unknown")
+
+    def test_source_down_is_unknown(self):
+        self.assertEqual(publish.check_space(os.path.join(self.tmp, "nothing"), self.now)["state"], "unknown")
+
+    def test_space_weather_never_changes_a_level(self):
+        official = {"terror": None, "items": [], "weather": {}, "used": [], "issues": [], "checks": {}}
+        base = fresh_baseline()
+        self.put(self.scales(5, 5, 5))
+        official["checks"] = {"alerts": {"id": "alerts", "state": "clear"}, "grid": {"id": "grid", "state": "clear"}, "space": publish.check_space(self.tmp, self.now)}
+        bumps, _, _ = publish.auto_rules([], official["checks"], self.now)
+        self.assertEqual(bumps, {})
+        strip = publish.build_checks(official, base, self.now)
+        self.assertEqual([c["id"] for c in strip], ["alerts", "terror", "grid", "space"])
+
+
 class LowTouch(unittest.TestCase):
     """Automatic escalation: official triggers only, 72 hours, never level 5."""
 
     def setUp(self):
         self.now = publish.now_utc()
-        self.base = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        self.base = fresh_baseline()
 
     def item(self, title, hours=2, cats=("cyber",), source="NCSC"):
         return {"id": "x", "cats": list(cats), "title": title, "source": source, "url": "https://example.test/x",
@@ -375,7 +434,7 @@ class LevelFive(unittest.TestCase):
         self.assertEqual(new["first_seen"]["mi5-critical"], st["first_seen"]["mi5-critical"])
 
     def test_feed_reaches_level_five_with_a_reason(self):
-        base = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        base = fresh_baseline()
         off = {"terror": "CRITICAL", "items": [], "weather": {}, "used": [], "issues": [],
                "bumps": {"security": (5, "the official terrorism threat level is CRITICAL and has held for over 6 hours", "u")}, "auto_notices": []}
         f = publish.build_feed(base, [], {}, off, self.now)
@@ -384,7 +443,7 @@ class LevelFive(unittest.TestCase):
         self.assertIn("Raised automatically to Critical", sec["reason"])
 
     def test_official_headlines_carry_the_sources_own_summary(self):
-        base = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        base = fresh_baseline()
         off = {"terror": None, "items": [{"id": "o1", "cats": ["cyber"], "title": "T", "summary": "The department's own description.", "source": "GOV.UK", "date": publish.iso(self.now), "url": "https://x.test", "background": False}],
                "weather": {}, "used": [], "issues": []}
         f = publish.build_feed(base, [], {}, off, self.now)
@@ -420,10 +479,153 @@ class EmergencyBrake(unittest.TestCase):
                 f.write(original)
 
 
+class FallBack(unittest.TestCase):
+    """Levels can come back down without the editor: terrorism follows MI5, other areas settle if nobody reviews them."""
+
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.base = fresh_baseline()
+        self.empty = {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}
+
+    def feed(self, terror=None, base=None, **kw):
+        off = dict(self.empty, terror=terror)
+        return publish.build_feed(base or self.base, [], {}, off, self.now, **kw)
+
+    def area(self, f, a):
+        return next(x for x in f["areas"] if x["id"] == a)
+
+    def test_terrorism_follows_mi5_down(self):
+        f = self.feed("SUBSTANTIAL")
+        sec = self.area(f, "security")
+        self.assertEqual((sec["level"], sec["basis"]), (2, "official"))
+        self.assertIn("SUBSTANTIAL", sec["status"])
+        self.assertEqual(self.area(self.feed("MODERATE"), "security")["level"], 1)
+
+    def test_terrorism_follows_mi5_up(self):
+        b = json.loads(json.dumps(self.base)); b["areas"]["security"]["level"] = 2
+        self.assertEqual(self.area(self.feed("SEVERE", b), "security")["level"], 3)
+
+    def test_unreadable_mi5_falls_back_to_the_editors_level(self):
+        sec = self.area(self.feed(None), "security")
+        self.assertEqual((sec["level"], sec["basis"]), (self.base["areas"]["security"]["level"], "editor"))
+        self.assertIn("not available", sec["reason"])
+
+    def test_status_text_never_states_a_stale_level(self):
+        sec = self.area(self.feed("MODERATE"), "security")
+        self.assertNotIn("SEVERE", sec["status"])
+
+    def test_unreviewed_areas_settle_at_aware_after_the_decay_window(self):
+        old = json.loads(json.dumps(self.base))
+        old_date = (self.now - timedelta(days=120)).strftime("%Y-%m-%d")
+        for a in old["areas"].values():
+            a["as_of"] = old_date
+        f = self.feed("SEVERE", old, decay_days=90)
+        cyber = self.area(f, "cyber")
+        self.assertEqual((cyber["level"], cyber["lowered"], cyber["basis"]), (2, True, "decayed"))
+        self.assertIn("Lowered automatically", cyber["reason"])
+        self.assertEqual(self.area(f, "security")["level"], 3)     # terrorism does not decay: it follows MI5
+
+    def test_recently_reviewed_areas_do_not_decay(self):
+        f = self.feed("SEVERE")
+        self.assertEqual(self.area(f, "cyber")["level"], self.base["areas"]["cyber"]["level"])
+        self.assertFalse(self.area(f, "cyber")["lowered"])
+
+    def test_decay_never_goes_below_aware_and_never_touches_low_levels(self):
+        old = json.loads(json.dumps(self.base)); old["areas"]["supply"]["level"] = 1
+        for a in old["areas"].values():
+            a["as_of"] = (self.now - timedelta(days=400)).strftime("%Y-%m-%d")
+        f = self.feed("SEVERE", old)
+        self.assertEqual(self.area(f, "supply")["level"], 1)
+        self.assertTrue(all(a["level"] >= 1 for a in f["areas"]))
+        self.assertTrue(all(a["level"] <= 3 for a in f["areas"]))
+
+    def test_an_official_trigger_still_beats_the_decay(self):
+        old = json.loads(json.dumps(self.base))
+        for a in old["areas"].values():
+            a["as_of"] = (self.now - timedelta(days=400)).strftime("%Y-%m-%d")
+        off = dict(self.empty, terror="SEVERE", bumps={"comms": (4, "MoD: x", "u")})
+        f = publish.build_feed(old, [], {}, off, self.now)
+        self.assertEqual(self.area(f, "comms")["level"], 4)
+
+    def test_an_area_lifted_by_a_trigger_is_labelled_raised_not_lowered(self):
+        old = json.loads(json.dumps(self.base))
+        for a in old["areas"].values():
+            a["as_of"] = (self.now - timedelta(days=400)).strftime("%Y-%m-%d")
+        f = publish.build_feed(old, [], {}, dict(self.empty, terror="SEVERE", bumps={"comms": (4, "MoD: x", "u")}), self.now)
+        self.assertEqual(self.area(f, "comms")["basis"], "raised")
+
+    def test_feed_reports_the_decay_window(self):
+        self.assertEqual(self.feed("SEVERE")["decay_days"], 90)
+
+    def test_last_accepted_mi5_level_is_remembered(self):
+        st = publish.update_state({"first_seen": {}}, set(), self.now, "SUBSTANTIAL")
+        self.assertEqual(st["terror_last"], "SUBSTANTIAL")
+        self.assertEqual(publish.update_state(st, set(), self.now)["terror_last"], "SUBSTANTIAL")
+
+
+class Cables(unittest.TestCase):
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.tmp = tempfile.mkdtemp()
+
+    def item(self, title, hours=2):
+        return {"id": "c1", "cats": ["comms"], "title": title, "source": "GOV.UK: Ministry of Defence", "url": "https://example.test/x",
+                "date": (self.now - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"), "background": False}
+
+    def test_official_statement_about_damage_to_a_cable_lifts_comms(self):
+        bumps, _, _ = publish.auto_rules([self.item("Ministry of Defence statement on damage to an undersea cable")], {}, self.now)
+        self.assertEqual(bumps["comms"][0], 4)
+
+    def test_cable_headline_without_damage_does_nothing(self):
+        for title in ("Undersea cable protection strategy published", "Statement on Russian submarine activity near UK infrastructure"):
+            self.assertEqual(publish.auto_rules([self.item(title)], {}, self.now)[0], {}, title)
+
+    def test_old_cable_statement_expires(self):
+        self.assertEqual(publish.auto_rules([self.item("Damage to undersea cable", hours=80)], {}, self.now)[0], {})
+
+    def put(self, obj):
+        with open(os.path.join(self.tmp, "internet.json"), "w") as f:
+            json.dump(obj, f)
+
+    def ann(self, hours_ago, cause="CABLE_CUT", ended=None, desc="Traffic drop in the UK."):
+        d = {"startDate": publish.iso(self.now - timedelta(hours=hours_ago)), "endDate": ended, "description": desc, "outage": {"outageCause": cause, "outageType": "NETWORK"}}
+        return d
+
+    def test_internet_tile_is_absent_without_a_token(self):
+        self.assertIsNone(publish.check_internet(None, self.now, ""))
+
+    def test_internet_clear_only_when_a_list_was_read(self):
+        self.put({"success": True, "result": {"annotations": []}})
+        c = publish.check_internet(self.tmp, self.now, "x")
+        self.assertEqual((c["state"], c["text"]), ("clear", "None in 24 hours"))
+
+    def test_recent_cable_cut_is_an_informational_notice(self):
+        self.put({"success": True, "result": {"annotations": [self.ann(3)]}})
+        c = publish.check_internet(self.tmp, self.now, "x")
+        self.assertEqual(c["state"], "notice")
+        self.assertIn("cable damage", c["text"])
+
+    def test_old_or_finished_events_are_ignored(self):
+        self.put({"success": True, "result": {"annotations": [self.ann(100), self.ann(30, ended=publish.iso(self.now - timedelta(hours=26)))]}})
+        self.assertEqual(publish.check_internet(self.tmp, self.now, "x")["state"], "clear")
+
+    def test_bad_response_is_unknown_not_clear(self):
+        self.put({"success": False, "errors": [{"message": "bad token"}]})
+        self.assertEqual(publish.check_internet(self.tmp, self.now, "x")["state"], "unknown")
+        self.put({"result": {}})
+        self.assertEqual(publish.check_internet(self.tmp, self.now, "x")["state"], "unknown")
+
+    def test_internet_tile_never_changes_a_level(self):
+        checks = {"grid": {"state": "clear"}, "internet": publish.check_internet(self.tmp, self.now, "x")}
+        self.put({"success": True, "result": {"annotations": [self.ann(1)]}})
+        checks["internet"] = publish.check_internet(self.tmp, self.now, "x")
+        self.assertEqual(publish.auto_rules([], checks, self.now)[0], {})
+
+
 class LevelPreview(unittest.TestCase):
     def test_five_scenarios_cover_levels_one_to_five(self):
         import build_site
-        baseline = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+        baseline = fresh_baseline()
         signals = publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
         snap = publish.build_feed(baseline, signals, {}, {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}, publish.now_utc())
         feeds = build_site.scenario_feeds(snap)

@@ -14,10 +14,12 @@ No cookies. No ads. No tracking. There are no accounts. A visitor's answers stay
 
 ## How it works
 
+Built with the help of an AI assistant (Claude). The editor chooses and checks the levels and is responsible for the wording.
+
 A static site, rebuilt by GitHub Actions every 30 minutes and whenever a file changes.
 
 - `editorial/` holds the editor's baseline levels, change log, notices and signals (short summaries in the editor's own words, each linking to the original).
-- Official, open-licensed sources are read automatically: the MI5 threat level, GOV.UK, the NCSC, the Met Office, GOV.UK Emergency Alerts and Elexon grid notices.
+- Official, open-licensed sources are read automatically: the MI5 threat level, GOV.UK, the NCSC, the Met Office, GOV.UK Emergency Alerts, Elexon grid notices and space weather levels (NOAA).
 - Press feeds are not used. Nothing from the press can move a level.
 - `src/` is the page. `tools/` builds it. `tests/` run before every publish.
 
@@ -26,6 +28,8 @@ A static site, rebuilt by GitHub Actions every 30 minutes and whenever a file ch
 - Contains public sector information licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/): GOV.UK, the NCSC, the Met Office and GOV.UK Emergency Alerts.
 - This uses Environment Agency flood and river level data from the real-time data API (Beta).
 - Contains BMRS data (c) Elexon Limited copyright and database right.
+- Optionally, UK internet disruptions from Cloudflare Radar (data licensed CC BY-NC 4.0), shown only for information.
+- Space weather storm levels from the NOAA Space Weather Prediction Center (US government data). UK space weather forecasts come from the Met Office.
 - Postcode areas via postcodes.io. Contains Ordnance Survey data (c) Crown copyright and database right 2025. Contains Royal Mail data (c) Royal Mail copyright and database right 2025. Contains National Statistics data (c) Crown copyright and database right 2025. Contains NRS data (c) Crown copyright and database right 2025.
 - News reports are linked, not copied. Their owners keep their copyright.
 

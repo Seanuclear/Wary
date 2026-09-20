@@ -427,8 +427,9 @@ footer p{max-width:50em;color:var(--hero-fg)}
         <div class="box">
           <h3>The rules</h3>
           <ul>
-            <li>Each area has a <strong>baseline</strong> level that the editor sets from official assessments and expert statements, and reviews about once a month. The page shows when.</li>
-            <li>A few clear <strong>official</strong> triggers can raise an area by themselves for up to 72 hours, and it is labelled &ldquo;raised automatically&rdquo;: the NCSC declaring a nationally significant cyber incident, or the grid operator warning of demand control or load shedding. The official MI5 terrorism threat level is also read automatically.</li>
+            <li>Each area has a <strong>baseline</strong> level that the editor sets from official assessments and expert statements, and reviews about once a month. The page shows when. If an area goes unreviewed for 90 days, any level above Aware steps down to Aware by itself.</li>
+            <li>The <strong>terrorism</strong> area follows the official MI5 threat level automatically, up and down.</li>
+            <li>A few clear <strong>official</strong> triggers can raise other areas for up to 72 hours, labelled &ldquo;raised automatically&rdquo;: the NCSC declaring a nationally significant cyber incident, the grid operator warning of demand control or load shedding, or an official statement about damage to undersea cables.</li>
             <li>Nothing from the press moves a level. Other automatic headlines are shown for information only.</li>
             <li><strong>Level 5</strong> is set automatically only for a very clear official signal that has held for over 6 hours: the official terrorism threat level at CRITICAL, or the government naming an attack on the UK while convening COBR. Until it has held, the area shows High. Real emergencies will reach you first through Emergency Alerts and the government, not through this page.</li>
             <li>This does not replace Emergency Alerts, the police, your council or the BBC.</li>
@@ -462,7 +463,8 @@ footer p{max-width:50em;color:var(--hero-fg)}
         <div class="box">
           <h3>Who runs this</h3>
           <p>Run by {{OWNER}}. It is non-commercial, carries no advertising, and is not an official service. No government body endorses it.</p>
-          <p>Every summary in “Signals” is written by the editor from public reporting and links to the original. The automatic headlines come only from official, open-licensed feeds.</p>
+          <p>Every summary in “Signals” is written or checked by the editor from public reporting and links to the original. The automatic headlines come only from official, open-licensed feeds.</p>
+          <p>Wary was built with the help of an AI assistant. The editor chooses and checks the levels, and is responsible for what the site says.</p>
           {{ADDRESS_LINE}}
           {{CONTACT_LINE}}
           {{DONATE_BLOCK}}
@@ -472,6 +474,8 @@ footer p{max-width:50em;color:var(--hero-fg)}
         <h3>Sources and licences</h3>
         <ul>
           <li><strong>Live checks.</strong> Emergency Alerts status from GOV.UK (Open Government Licence v3.0). Electricity grid notices from Elexon BMRS: contains BMRS data © Elexon Limited copyright and database right. If a check cannot be read, the strip says so instead of guessing.</li>
+          <li><strong>Space weather.</strong> Storm levels from the NOAA Space Weather Prediction Center (US government data). UK forecasts come from the <a href="https://weather.metoffice.gov.uk/specialist-forecasts/space-weather" target="_blank" rel="noopener noreferrer">Met Office</a>, which forecasts space weather around the clock, and its content is available under the Open Government Licence. It is shown so a GPS or grid problem is not mistaken for an attack, and it never changes a level.</li>
+          <li><strong>UK internet (if shown).</strong> Disruptions seen by Cloudflare Radar, whose data is licensed CC BY-NC 4.0. It is shown for information only and never changes a level.</li>
           <li><strong>Threat level.</strong> The UK national terrorism threat level is read from MI5’s website (Crown copyright).</li>
           <li><strong>Official headlines.</strong> From GOV.UK departments and the NCSC. Contains public sector information licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noopener noreferrer">Open Government Licence v3.0</a>.</li>
           <li><strong>Flood warnings.</strong> This uses Environment Agency flood and river level data from the real-time data API (Beta).</li>
@@ -925,7 +929,7 @@ function renderAreas(){
       (function(){ var i=useIcon(C.icon,'ico',52); return i; })(),
       h('span',{'class':'area-name',text:a.name}),
       pips(a.level),
-      h('span',{'class':'lvl'},(function(){ var em=h('em',{text:String(a.level)}); return em; })(),LEVELS[a.level-1].name+(a.level>a.baseline?' (raised automatically)':'')),
+      h('span',{'class':'lvl'},(function(){ var em=h('em',{text:String(a.level)}); return em; })(),LEVELS[a.level-1].name+(a.basis==='official'?' (follows the official MI5 level)':a.basis==='raised'?' (raised automatically)':a.lowered?' (lowered automatically)':a.level>a.baseline?' (raised automatically)':'')),
       h('span',{'class':'chev','aria-hidden':'true'}));
     head.style.setProperty('--c',lc(a.level));
     var ul=h('ul',{'class':'checks'}); C.items.forEach(function(it){ ul.appendChild(checkbox(it)); });

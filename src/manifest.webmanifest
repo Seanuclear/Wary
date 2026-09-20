@@ -2,6 +2,7 @@
   "name": "{{NAME}}",
   "short_name": "{{SHORT_NAME}}",
   "description": "{{DESCRIPTION}} No cookies, no ads, no tracking.",
+  "lang": "en-GB",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
