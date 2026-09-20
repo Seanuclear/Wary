@@ -1,5 +1,5 @@
 {
-  "_readme": "Only official, open-licence sources are fetched automatically for the public site. Press feeds are deliberately absent: their terms allow personal use, not republication. Feed URLs were not live-tested when this was written. Failures are shown on the site as 'some official feeds unavailable' and in the Actions log.",
+  "_readme": "Only official, open-licence sources are fetched automatically for the public site. Press feeds are deliberately absent: their terms allow personal use, not republication. Feed URLs were not live-tested when this was written. Failures are shown on the site as 'some official feeds unavailable' and in the Actions log. Widened set: adds the Foreign Office, UK Health Security Agency, Transport, the Maritime and Coastguard Agency, Environment/Food/Rural Affairs, Science/Innovation/Technology, the Drinking Water Inspectorate and US CISA advisories. GOV.UK feed addresses follow the standard pattern but were not live-tested; any that fail just appear as unavailable.",
   "sources": [
     {
       "id": "mi5-level",
@@ -43,6 +43,62 @@
       "url": "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml",
       "licence": "Crown copyright (OGL)",
       "default_area": "cyber"
+    },
+    {
+      "id": "gov-fcdo",
+      "name": "GOV.UK: Foreign, Commonwealth and Development Office",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/foreign-commonwealth-development-office.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-ukhsa",
+      "name": "GOV.UK: UK Health Security Agency",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/uk-health-security-agency.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-dft",
+      "name": "GOV.UK: Department for Transport",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/department-for-transport.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-mca",
+      "name": "GOV.UK: Maritime and Coastguard Agency",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/maritime-and-coastguard-agency.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-defra",
+      "name": "GOV.UK: Environment, Food and Rural Affairs",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/department-for-environment-food-rural-affairs.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-dsit",
+      "name": "GOV.UK: Science, Innovation and Technology",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-dwi",
+      "name": "GOV.UK: Drinking Water Inspectorate",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/drinking-water-inspectorate.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "cisa",
+      "name": "CISA advisories (US government)",
+      "kind": "rss",
+      "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
+      "licence": "US government work, public domain"
     }
   ],
   "met_regions": [
