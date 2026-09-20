@@ -11,5 +11,6 @@
   "auto_headlines": true,
   "stale_days": 60,
   "hold_hours": 6,
+  "bbc_headlines": true,
   "auto_levels": true
 }
