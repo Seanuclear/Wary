@@ -1,0 +1,65 @@
+{
+  "_readme": "Editorial baseline for the PUBLIC edition. You are the editor: these levels change only when you change them (apart from the MI5 threat level, which is read from MI5 and used as a floor for the terrorism area). Keep each 'reason' factual and attributed. Say what officials or reporters said, and avoid asserting who did what. Update 'as_of' whenever you review an entry. The official CRITICAL terrorism level shows as High (4) at once and only becomes Critical (5) after it has held for the hold time (6 hours by default).",
+  "scale": {
+    "1": "Routine",
+    "2": "Aware",
+    "3": "Elevated",
+    "4": "High",
+    "5": "Critical"
+  },
+  "official_terror_map": {
+    "LOW": 1,
+    "MODERATE": 1,
+    "SUBSTANTIAL": 2,
+    "SEVERE": 3,
+    "CRITICAL": 4
+  },
+  "official_terror_baseline": {
+    "level": "SEVERE",
+    "as_of": "2026-04-30",
+    "source": "GOV.UK / JTAC"
+  },
+  "areas": {
+    "energy": {
+      "level": 2,
+      "as_of": "2026-09-19",
+      "status": "Winter electricity looks comfortable. Gas markets are under strain from the Middle East. No supply disruption from hostile action is reported in the sources checked.",
+      "reason": "NESO's early view of winter 2026/27 shows a surplus of about 5.5 GW (8.8% above expected peak demand). National Gas reported no immediate operational concerns in its summer outlook. NESO also notes that constraints on shipping through the Strait of Hormuz are keeping global gas prices high. The NCSC warned UK operators in February 2026 after the December 2025 attack on Polish energy sites."
+    },
+    "cyber": {
+      "level": 3,
+      "as_of": "2026-09-19",
+      "status": "Hostile states are behind about three in four serious attacks on UK critical infrastructure. For a household the likely effect is a service outage or a scam, not a direct hit.",
+      "reason": "The NCSC chief said in June 2026 that the NCSC handled more than 200 incidents affecting critical national infrastructure in the year to May 2026, with around 75% linked to state actors such as Russia, China and Iran. GCHQ's director said in May that Russia is scaling up daily hybrid activity against the UK."
+    },
+    "comms": {
+      "level": 3,
+      "as_of": "2026-09-19",
+      "status": "Russian undersea activity near UK cables was disclosed in April, with more detail reported in September. No UK cable damage has been reported. The UK has many cables, so one cut would probably slow services rather than cut everything off.",
+      "reason": "The Ministry of Defence disclosed Russian submarine and seabed-survey activity in UK waters in April 2026 and said there was no evidence of damage. Reuters reported on 10 September that UK, Norwegian and US forces confronted Russian undersea vessels rehearsing sabotage. Cable incidents in the Baltic (December 2025) show the method has been used elsewhere."
+    },
+    "security": {
+      "level": 3,
+      "as_of": "2026-09-19",
+      "status": "The official UK terrorism threat level is SEVERE, meaning an attack is highly likely. It has been since 30 April 2026. Officials also point to state-linked physical threats, including arson.",
+      "reason": "JTAC raised the national threat level from SUBSTANTIAL to SEVERE on 30 April 2026. The government said the rise reflects a gradual increase in Islamist and extreme right-wing threats, against a backdrop of state-linked physical threats. Most people's daily life carries on as normal. The useful response is awareness and knowing what to do."
+    },
+    "military": {
+      "level": 2,
+      "as_of": "2026-09-19",
+      "status": "No public sign of a direct military threat to UK homes. Some Western intelligence officials fear Russia is preparing for a possible conflict with NATO, and hybrid activity is rising.",
+      "reason": "Reuters (10 September 2026) reports that some Western intelligence officials fear the Kremlin is ramping up sabotage in Europe and preparing for conflict with NATO. No official UK source has raised the risk to households. A nuclear or conventional attack on the UK remains a low-probability, high-impact risk."
+    },
+    "supply": {
+      "level": 2,
+      "as_of": "2026-09-19",
+      "status": "No shortages reported in the sources checked. Global gas disruption may push up energy prices. Water utilities are a known cyber target elsewhere in Europe.",
+      "reason": "Denmark blamed Russia in December 2025 for cyberattacks on a water utility. GCHQ has listed supply chains among Russia's targets. No UK food, water or fuel supply disruption linked to hostile action was found in the sources checked."
+    }
+  },
+  "official_ni_baseline": {
+    "level": "SUBSTANTIAL",
+    "as_of": "2026-09-19",
+    "source": "MI5 threat levels page"
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "_readme": "Only official, open-licence sources are fetched automatically for the public site. Press feeds are deliberately absent: their terms allow personal use, not republication. Feed URLs were not live-tested when this was written. Failures are shown on the site as 'some official feeds unavailable' and in the Actions log.",
+  "sources": [
+    {
+      "id": "mi5-level",
+      "name": "MI5 threat level page",
+      "kind": "mi5_level",
+      "url": "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels",
+      "licence": "Crown copyright, mi5.gov.uk"
+    },
+    {
+      "id": "gov-mod",
+      "name": "GOV.UK: Ministry of Defence",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/ministry-of-defence.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-homeoffice",
+      "name": "GOV.UK: Home Office",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/home-office.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-cabinet",
+      "name": "GOV.UK: Cabinet Office",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/cabinet-office.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "gov-desnz",
+      "name": "GOV.UK: Energy Security and Net Zero",
+      "kind": "rss",
+      "url": "https://www.gov.uk/government/organisations/department-for-energy-security-and-net-zero.atom",
+      "licence": "OGL v3.0"
+    },
+    {
+      "id": "ncsc",
+      "name": "NCSC news and reports",
+      "kind": "rss",
+      "url": "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml",
+      "licence": "Crown copyright (OGL)",
+      "default_area": "cyber"
+    }
+  ],
+  "met_regions": [
+    {
+      "code": "UK",
+      "name": "UK-wide",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/UK"
+    },
+    {
+      "code": "se",
+      "name": "London and South East England",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/se"
+    },
+    {
+      "code": "sw",
+      "name": "South West England",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/sw"
+    },
+    {
+      "code": "ee",
+      "name": "East of England",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/ee"
+    },
+    {
+      "code": "em",
+      "name": "East Midlands",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/em"
+    },
+    {
+      "code": "wm",
+      "name": "West Midlands",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/wm"
+    },
+    {
+      "code": "yh",
+      "name": "Yorkshire and Humber",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/yh"
+    },
+    {
+      "code": "ne",
+      "name": "North East England",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/ne"
+    },
+    {
+      "code": "nw",
+      "name": "North West England",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/nw"
+    },
+    {
+      "code": "wl",
+      "name": "Wales",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/wl"
+    },
+    {
+      "code": "ni",
+      "name": "Northern Ireland",
+      "url": "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/ni"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "_readme": "A log of every change to the level, newest first is not required. Add an entry whenever you change a level or write an editor's note. Each shows on the page and in the history.xml feed people can subscribe to. 'text' is under 400 characters, in your own words, and says what changed and why.",
+  "entries": [
+    {
+      "date": "2026-09-19",
+      "level": 3,
+      "title": "Launch assessment: Elevated",
+      "text": "Starting level set from the official UK terrorism threat level (SEVERE since 30 April 2026), the NCSC's picture of state-linked cyber activity, and reports of Russian undersea activity near UK cables. No disruption to UK services has been reported."
+    }
+  ]
+}

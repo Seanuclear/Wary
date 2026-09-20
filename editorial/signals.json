@@ -1,0 +1,154 @@
+{
+  "_readme": "Curated signals in YOUR OWN WORDS, newest first is not required (the site sorts them). Each needs a link to the original report. Write the summary yourself and never paste text from a news site. 'tier': 1 official, 2 established press, 3 specialist. 'precision' is 'day' or 'month'. 'background': true for older context. Areas: energy, cyber, comms, security, military, supply.",
+  "signals": [
+    {
+      "id": "s01",
+      "cats": [
+        "comms",
+        "military"
+      ],
+      "tier": 2,
+      "date": "2026-09-10",
+      "precision": "day",
+      "source": "Reuters, via Defense News",
+      "title": "Reuters: allied forces confronted Russian undersea vessels near cables",
+      "summary": "Reuters reports, citing two unnamed Western officials, that UK, Norwegian and US forces confronted Russian vessels rehearsing undersea sabotage. Because the officials are unnamed, treat the details as reported, not confirmed.",
+      "url": "https://www.defensenews.com/global/europe/2026/09/10/nato-allies-foil-russian-subsea-cable-sabotage-plot/",
+      "background": false
+    },
+    {
+      "id": "s02",
+      "cats": [
+        "cyber",
+        "energy",
+        "supply"
+      ],
+      "tier": 1,
+      "date": "2026-06-17",
+      "precision": "day",
+      "source": "RUSI, publishing the NCSC chief's lecture",
+      "title": "NCSC chief: about three in four attacks on UK critical infrastructure are linked to hostile states",
+      "summary": "Richard Horne said the NCSC handled more than 200 incidents affecting critical national infrastructure in the year to May 2026. He named Russia, China and Iran, and warned that AI will likely be used to attack out-of-date systems at scale by 2028.",
+      "url": "https://www.rusi.org/news-and-comment/rusi-news/hostile-states-behind-75percent-cyber-attacks-uk-infrastructure-ncsc-ceo",
+      "background": false
+    },
+    {
+      "id": "s03",
+      "cats": [
+        "security",
+        "cyber",
+        "comms"
+      ],
+      "tier": 1,
+      "date": "2026-05-15",
+      "precision": "month",
+      "source": "US Congressional Research Service, citing GCHQ",
+      "title": "GCHQ director: Russian hybrid activity is scaling up, from the seabed to cyberspace",
+      "summary": "In May, Anne Keast-Butler said Russia is stepping up its daily hybrid activity against the UK and Europe, targeting critical infrastructure, democratic processes and supply chains.",
+      "url": "https://www.congress.gov/crs-product/R49134",
+      "background": false
+    },
+    {
+      "id": "s04",
+      "cats": [
+        "security"
+      ],
+      "tier": 1,
+      "date": "2026-05-14",
+      "precision": "day",
+      "source": "GOV.UK (Home Office)",
+      "title": "Security Minister updates Parliament on terror and state threats",
+      "summary": "Dan Jarvis told MPs about arson attacks and incidents targeting British Jews and opponents of the Iranian regime, and about record levels of casework on terror plots, espionage and state-linked threats.",
+      "url": "https://www.gov.uk/government/speeches/security-minister-statement-on-national-security-and-threat-level",
+      "background": false
+    },
+    {
+      "id": "s05",
+      "cats": [
+        "security"
+      ],
+      "tier": 1,
+      "date": "2026-04-30",
+      "precision": "day",
+      "source": "GOV.UK",
+      "title": "UK terrorism threat level raised to SEVERE",
+      "summary": "JTAC raised the national threat level from SUBSTANTIAL to SEVERE, meaning an attack is highly likely. The government says the rise follows the Golders Green stabbing but reflects a gradual increase in Islamist and extreme right-wing threats, against a backdrop of state-linked physical threats.",
+      "url": "https://www.gov.uk/government/news/uk-national-threat-level-raised-to-severe",
+      "background": false
+    },
+    {
+      "id": "s06",
+      "cats": [
+        "comms",
+        "energy",
+        "military"
+      ],
+      "tier": 2,
+      "date": "2026-04-09",
+      "precision": "month",
+      "source": "Cybernews, reporting the MoD briefing",
+      "title": "MoD discloses Russian submarine activity near UK cables and pipelines",
+      "summary": "Defence Secretary John Healey said Russian vessels had been surveying seabed infrastructure in the UK's wider waters. He said there was no evidence of damage and that the vessels had left.",
+      "url": "https://cybernews.com/security/russian-spy-submarine-uk-subsea-cables-cyber-threat/",
+      "background": false
+    },
+    {
+      "id": "s07",
+      "cats": [
+        "energy"
+      ],
+      "tier": 1,
+      "date": "2026-06-23",
+      "precision": "month",
+      "source": "NESO (grid operator)",
+      "title": "Grid operator expects comfortable electricity margins this winter",
+      "summary": "NESO's early view for 31 October 2026 to 31 March 2027 shows a surplus of about 5.5 GW, 8.8% above expected peak demand. It notes gas markets are strained by constraints on shipping through the Strait of Hormuz. A fuller outlook is due in October.",
+      "url": "https://www.neso.energy/document/383451/download",
+      "background": false
+    },
+    {
+      "id": "s08",
+      "cats": [
+        "energy",
+        "cyber"
+      ],
+      "tier": 2,
+      "date": "2026-02-10",
+      "precision": "day",
+      "source": "Infosecurity Magazine, reporting the NCSC",
+      "title": "NCSC tells infrastructure operators to act now after attacks on Poland's energy sites",
+      "summary": "The NCSC's director for national resilience urged UK operators to prepare for severe, deliberately destructive attacks, following coordinated attacks on Polish energy sites in late December 2025.",
+      "url": "https://www.infosecurity-magazine.com/news/ncsc-warning-severe-cyberattacks",
+      "background": true
+    },
+    {
+      "id": "s09",
+      "cats": [
+        "cyber",
+        "supply"
+      ],
+      "tier": 2,
+      "date": "2025-12-19",
+      "precision": "day",
+      "source": "Euronews",
+      "title": "Denmark blames Russia for cyberattacks on a water utility",
+      "summary": "Denmark publicly blamed Russia for attacks on a water utility that burst pipes, and for attacks on election websites. It was the first time Copenhagen had named Moscow.",
+      "url": "https://www.euronews.com/tag/sabotage",
+      "background": true
+    },
+    {
+      "id": "s10",
+      "cats": [
+        "comms"
+      ],
+      "tier": 3,
+      "date": "2025-12-15",
+      "precision": "month",
+      "source": "UK Defence Journal",
+      "title": "Finland detains a ship over a suspected cable break",
+      "summary": "A cargo ship was held in December 2025 after damage to a telecoms cable between Finland and Estonia. It was the second such detention in about a year.",
+      "url": "https://ukdefencejournal.org.uk/russian-vessels-mapping-uk-undersea-cables/",
+      "background": true
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Wary",
+  "short_name": "Wary",
+  "tagline": "Watchful, not worried.",
+  "owner": "an individual, not a company",
+  "contact": "",
+  "donate_url": "",
+  "host": "GitHub Pages",
+  "site_url": "https://wary.org.uk",
+  "description": "Calm, sourced UK household threat levels.",
+  "auto_headlines": true,
+  "stale_days": 60,
+  "hold_hours": 6,
+  "auto_levels": true
+}
