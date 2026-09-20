@@ -1,22 +1,28 @@
-# Builds the site and publishes it to GitHub Pages every 30 minutes, and whenever you change a file.
+# Builds the site and publishes it to GitHub Pages about every 30 minutes, and whenever you change a file.
 # One-time setup: repository Settings, Pages, Build and deployment, Source: "GitHub Actions".
+#
+# Two things GitHub does that this file works around:
+#  1. Scheduled runs at the top of the hour are the most delayed, so this runs at 7 and 37 minutes past.
+#  2. In a public repository GitHub switches scheduled runs OFF after 60 days with no repository activity.
+#     The "keep the schedule alive" step makes a tiny empty commit after 40 quiet days, so a hands-off site keeps running.
 name: Build and publish
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "7,37 * * * *"
   push:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write      # only used by the keep-alive commit
+      pages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,7 +32,7 @@ jobs:
         run: python -m unittest discover -s tests
       - name: Build the site
         run: python tools/build_site.py
-      - name: Remember when a level 5 trigger was first seen
+      - name: Remember state between runs (level 5 timers, evidence, link checks, change log)
         uses: actions/cache@v4
         with:
           path: data
@@ -36,6 +42,20 @@ jobs:
         run: python tools/publish.py
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Keep the schedule alive (empty commit if the repository has been quiet for 40 days)
+        if: github.event_name == 'schedule'
+        continue-on-error: true      # a failure here must never stop the site publishing
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          quiet_days=$(( (now - last) / 86400 ))
+          echo "Days since the last commit: $quiet_days"
+          if [ "$quiet_days" -ge 40 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Keep scheduled builds alive"
+            git push
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -43,6 +63,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
