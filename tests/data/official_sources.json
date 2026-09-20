@@ -161,6 +161,5 @@
   "approved_hosts": [
     "gov.uk",
     "cisa.gov"
-  ],
-  "_approved_hosts_readme": "A safety net. Only sources whose web address ends with one of these domains are fetched. To add a source from another official body, add its domain here as well. Do not add news outlets: their terms do not allow automatic republishing."
+  ]
 }

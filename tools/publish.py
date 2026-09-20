@@ -819,10 +819,24 @@ def auto_rules(items, checks, now, terror=None, state=None, hold_hours=6):
     return bumps, notices, active
 
 
+DEFAULT_APPROVED_HOSTS = ("gov.uk", "cisa.gov")
+
+
+def host_approved(url, approved):
+    host = (urlparse(url).hostname or "").lower()
+    return any(host == h or host.endswith("." + h) for h in approved)
+
+
 def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_hours=6, radar_token=""):
     out = {"terror": None, "items": [], "weather": {}, "used": [], "issues": [], "checks": {}}
     items = []
+    approved = tuple(src_doc.get("approved_hosts") or DEFAULT_APPROVED_HOSTS)
     for s in src_doc["sources"]:
+        if not host_approved(s.get("url", ""), approved):
+            print(f"warning: skipped '{s.get('name', s.get('id'))}': its web address is not on the approved official list. If it really is an official, "
+                  f"open-licensed source, add its domain to \"approved_hosts\" in official_sources.json.", file=sys.stderr)
+            out["issues"].append(f"{s.get('name', s.get('id'))} (not on the approved official list)")
+            continue
         try:
             data = fetch(s["url"], s["id"], fixtures)
             if s["kind"] == "mi5_level":
@@ -886,6 +900,18 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
     return out
 
 
+def load_or_exit(path, default=None):
+    """Read one of the owner's files. A typo gives a plain message and stops before anything is published, so the site keeps its last good version."""
+    try:
+        return load_json(path, default)
+    except ValueError as e:
+        name = os.path.relpath(path, ROOT)
+        print(f"\nThe file {name} has a typo and could not be read: {e}\n"
+              f"Open it on GitHub, click the pencil, fix it (check commas and straight double quotes), and save.\n"
+              f"Nothing was published, so the site is still showing its last good version.\n", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--fixtures")
@@ -894,10 +920,10 @@ def main():
     ap.add_argument("--editorial-only", action="store_true", help="skip all fetching (used to build the offline fallback)")
     a = ap.parse_args()
     now = now_utc()
-    baseline = load_json(os.path.join(ROOT, "editorial", "baseline.json"))
-    signals = load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
-    cfg = load_json(os.path.join(ROOT, "site.json"), {})
-    history = (load_json(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
+    baseline = load_or_exit(os.path.join(ROOT, "editorial", "baseline.json"))
+    signals = load_or_exit(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
+    cfg = load_or_exit(os.path.join(ROOT, "site.json"), {})
+    history = (load_or_exit(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
     problems = validate_editorial(signals, baseline) + validate_history(history)
     if problems:
         print("Editorial files have problems. Nothing was published:\n  - " + "\n  - ".join(problems), file=sys.stderr)
@@ -907,7 +933,7 @@ def main():
         official = {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}
     else:
         state = load_state(a.state)
-        official = gather_official(load_json(os.path.join(ROOT, "official_sources.json")), a.fixtures, now,
+        official = gather_official(load_or_exit(os.path.join(ROOT, "official_sources.json")), a.fixtures, now,
                                    state.get("terror_last") or baseline["official_terror_baseline"]["level"], state, float(cfg.get("hold_hours", 6)),
                                    os.environ.get("CLOUDFLARE_API_TOKEN", ""))
         ev_by_area, ev_store = compute_evidence(official.pop("all_items", []), state, now, int(cfg.get("evidence_window_days", 30)))
@@ -920,7 +946,7 @@ def main():
             official["items"] = []
         if not cfg.get("auto_levels", True):  # the emergency brake: no automatic raising of any level, and no automatic notices
             official["bumps"], official["auto_notices"], official["evidence"] = {}, [], {}
-    notice = load_json(os.path.join(ROOT, "editorial", "notice.json"))
+    notice = load_or_exit(os.path.join(ROOT, "editorial", "notice.json"))
     stale_banner_days = int(cfg.get("stale_days", 60)) if cfg.get("stale_banner", False) else 0     # off by default: the site is meant to run itself
 
     def make(changes):

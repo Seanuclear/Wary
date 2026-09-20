@@ -11,12 +11,28 @@ from email.utils import format_datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
+DATA = os.path.join(ROOT, "tests", "data")     # frozen copies of the shipped defaults: the tests never read your live files
+
+
+def dload(name):
+    return json.load(open(os.path.join(DATA, name), encoding="utf-8"))
+
+
+def make_project(tmp):
+    """A throwaway copy of the code, with the frozen default data dropped in, for end-to-end runs."""
+    import shutil
+    proj = os.path.join(tmp, "proj")
+    shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+    for name, dst in (("baseline.json", "editorial/baseline.json"), ("signals.json", "editorial/signals.json"), ("history.json", "editorial/history.json"),
+                      ("notice.json", "editorial/notice.json"), ("official_sources.json", "official_sources.json"), ("site.json", "site.json")):
+        shutil.copy(os.path.join(DATA, name), os.path.join(proj, dst))
+    return proj
 import publish  # noqa: E402
 
 
 def fresh_baseline():
     """The shipped baseline with every review date set to today, so tests never depend on the calendar."""
-    b = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
+    b = dload("baseline.json")
     today = publish.now_utc().strftime("%Y-%m-%d")
     for a in b["areas"].values():
         a["as_of"] = today
@@ -41,9 +57,9 @@ class Build(unittest.TestCase):
         put("ncsc.xml", rss([("New guidance for small businesses", "Advice.", w(20))]))
         put("met-se.xml", rss([("Yellow warning of wind in London and South East England", "Valid.", w(1)), ("No warnings", "", w(1))]))
         put("met-UK.xml", rss([]))
-        self.doc = publish.load_json(os.path.join(ROOT, "official_sources.json"))
+        self.doc = dload("official_sources.json")
         self.baseline = fresh_baseline()
-        self.signals = publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
+        self.signals = dload("signals.json")["signals"]
         self.now = n
         self.official = publish.gather_official(self.doc, self.tmp, n)
         self.feed = publish.build_feed(self.baseline, self.signals, {}, self.official, n)
@@ -109,7 +125,7 @@ def urlparse_host(u):
 class Editorial(unittest.TestCase):
     def setUp(self):
         self.baseline = fresh_baseline()
-        self.good = dict(publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"][0])
+        self.good = dict(dload("signals.json")["signals"][0])
 
     def problems(self, **chg):
         s = dict(self.good, **chg)
@@ -233,7 +249,7 @@ class Mi5Guard(unittest.TestCase):
 class HistoryAndReview(unittest.TestCase):
     def setUp(self):
         self.base = fresh_baseline()
-        self.hist = publish.load_json(os.path.join(ROOT, "editorial", "history.json"))["entries"]
+        self.hist = dload("history.json")["entries"]
 
     def test_shipped_history_is_valid(self):
         self.assertEqual(publish.validate_history(self.hist), [])
@@ -454,29 +470,27 @@ class EmergencyBrake(unittest.TestCase):
     def test_auto_levels_false_removes_all_automatic_raising(self):
         import subprocess
         tmp = tempfile.mkdtemp()
+        proj = make_project(tmp)
+        now = publish.now_utc()
         with open(os.path.join(tmp, "mi5-level.html"), "w") as f:
             f.write("<p>The current national threat level is CRITICAL.</p>")
         for n in ("gov-mod.atom", "gov-homeoffice.atom", "gov-cabinet.atom", "gov-desnz.atom", "ncsc.xml"):
             with open(os.path.join(tmp, n), "w") as f:
                 f.write('<rss version="2.0"><channel></channel></rss>')
-        out = os.path.join(tmp, "site", "feed.json")
-        state = os.path.join(tmp, "state.json")
+        out, state = os.path.join(tmp, "site", "feed.json"), os.path.join(tmp, "state.json")
         with open(state, "w") as f:
-            json.dump({"first_seen": {"mi5-critical": publish.iso(publish.now_utc() - timedelta(hours=9))}}, f)
-        cfg_path = os.path.join(ROOT, "site.json")
-        original = open(cfg_path).read()
-        try:
-            def run(flag):
-                cfg = json.loads(original); cfg["auto_levels"] = flag
-                with open(cfg_path, "w") as f:
-                    json.dump(cfg, f)
-                subprocess.run([sys.executable, os.path.join(ROOT, "tools", "publish.py"), "--fixtures", tmp, "--state", state, "--out", out], check=True, capture_output=True)
-                return json.load(open(out))["overall"]["level"]
-            self.assertEqual(run(True), 5)
-            self.assertEqual(run(False), 4)   # the official CRITICAL floor still shows High, but nothing automatic reaches 5
-        finally:
-            with open(cfg_path, "w") as f:
-                f.write(original)
+            json.dump({"first_seen": {"mi5-critical": publish.iso(now - timedelta(hours=9))}}, f)
+
+        def run(flag):
+            cfg = dload("site.json")
+            cfg["auto_levels"] = flag
+            with open(os.path.join(proj, "site.json"), "w") as f:
+                json.dump(cfg, f)
+            subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", tmp, "--state", state, "--out", out], check=True, capture_output=True)
+            return json.load(open(out))["overall"]["level"]
+
+        self.assertEqual(run(True), 5)
+        self.assertEqual(run(False), 4)   # the official CRITICAL floor still shows High, but nothing automatic reaches 5
 
 
 class FallBack(unittest.TestCase):
@@ -797,8 +811,7 @@ class Evidence(unittest.TestCase):
         import shutil
         import subprocess
         tmp = tempfile.mkdtemp()
-        proj = os.path.join(tmp, "proj")
-        shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+        proj = make_project(tmp)
         b = json.load(open(os.path.join(proj, "editorial", "baseline.json")))
         for a in b["areas"].values():
             a["level"], a["as_of"] = 2, self.now.strftime("%Y-%m-%d")
@@ -911,8 +924,7 @@ class HandsOff(unittest.TestCase):
         import shutil
         import subprocess
         tmp = tempfile.mkdtemp()
-        proj = os.path.join(tmp, "proj")
-        shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+        proj = make_project(tmp)
         b = json.load(open(os.path.join(proj, "editorial", "baseline.json")))
         for a in b["areas"].values():
             a["level"], a["as_of"] = 2, self.now.strftime("%Y-%m-%d")
@@ -971,6 +983,10 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("contents: write", deploy)
         self.assertIn("id-token: write", deploy)
 
+    def test_the_self_checks_can_never_stop_the_site_publishing(self):
+        step = self.text[self.text.index("Run the self-checks"):self.text.index("Build the site")]
+        self.assertIn("continue-on-error: true", step)
+
     def test_still_runs_on_every_push_and_by_hand(self):
         self.assertIn("push:", self.text)
         self.assertIn("workflow_dispatch:", self.text)
@@ -989,7 +1005,6 @@ class BbcHeadlines(unittest.TestCase):
 
     def test_off_by_default_and_fetches_nothing(self):
         self.assertEqual(publish.fetch_press(False, self.tmp, self.now), [])
-        self.assertFalse(publish.load_json(os.path.join(ROOT, "site.json"))["bbc_headlines"])
 
     def test_only_recent_critical_headlines_are_kept(self):
         self.feed("uk", [("Major incident declared after explosion in city centre", "d", self.now - timedelta(hours=1)),
@@ -1094,8 +1109,7 @@ class Wording(unittest.TestCase):
         import shutil
         import subprocess
         tmp = tempfile.mkdtemp()
-        proj = os.path.join(tmp, "proj")
-        shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+        proj = make_project(tmp)
         cfg = json.load(open(os.path.join(proj, "site.json")))
         cfg["stale_days"] = 60
         cfg.pop("stale_banner", None)
@@ -1115,11 +1129,79 @@ class Wording(unittest.TestCase):
         self.assertEqual(json.load(open(out))["stale_days"], 60)
 
 
+class SafeEdits(unittest.TestCase):
+    """Ordinary edits to your own files must never stop the site publishing."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.now = publish.now_utc()
+
+    def doc(self, sources, **kw):
+        d = {"sources": sources, "met_regions": []}
+        d.update(kw)
+        return d
+
+    def src(self, sid, url):
+        return {"id": sid, "name": "Test " + sid, "kind": "rss", "url": url, "licence": "OGL v3.0"}
+
+    def test_a_source_from_an_unapproved_site_is_skipped_and_reported_not_fatal(self):
+        with open(os.path.join(self.tmp, "ofcom.xml"), "w") as f:
+            f.write(rss([("NCSC warns of Russian cyber campaign targeting UK networks", "d", self.now)]))
+        out = publish.gather_official(self.doc([self.src("ofcom", "https://www.ofcom.org.uk/rss")], approved_hosts=["gov.uk"]), self.tmp, self.now)
+        self.assertEqual(out["items"], [])
+        self.assertTrue(any("not on the approved official list" in i for i in out["issues"]))
+
+    def test_adding_the_domain_to_approved_hosts_switches_it_on(self):
+        with open(os.path.join(self.tmp, "ofcom.xml"), "w") as f:
+            f.write(rss([("NCSC warns of Russian cyber campaign targeting UK networks", "d", self.now - timedelta(hours=2))]))
+        out = publish.gather_official(self.doc([self.src("ofcom", "https://www.ofcom.org.uk/rss")], approved_hosts=["gov.uk", "ofcom.org.uk"]), self.tmp, self.now)
+        self.assertEqual(len(out["items"]), 1)
+
+    def test_a_missing_approved_hosts_setting_still_allows_gov_uk_only(self):
+        self.assertTrue(publish.host_approved("https://www.gov.uk/x", publish.DEFAULT_APPROVED_HOSTS))
+        self.assertFalse(publish.host_approved("https://www.bbc.co.uk/x", publish.DEFAULT_APPROVED_HOSTS))
+        self.assertFalse(publish.host_approved("https://evilgov.uk/x", publish.DEFAULT_APPROVED_HOSTS))
+
+    def test_the_shipped_default_sources_are_all_approved(self):
+        d = dload("official_sources.json")
+        for s in d["sources"]:
+            self.assertTrue(publish.host_approved(s["url"], d["approved_hosts"]), s["url"])
+
+    def _project_with(self, **files):
+        proj = make_project(tempfile.mkdtemp())
+        for name, text in files.items():
+            with open(os.path.join(proj, name.replace("__", "/")), "w") as f:
+                f.write(text)
+        return proj
+
+    def test_a_typo_in_a_file_gives_a_plain_message_and_publishes_nothing(self):
+        import subprocess
+        for fname, bad in (("editorial__signals.json", '{"signals": [ { "id": "x", }]}'), ("site.json", "{ name: Wary }"), ("official_sources.json", '{"sources": [')):
+            proj = self._project_with(**{fname: bad})
+            out = os.path.join(self.tmp, "o", "feed.json")
+            fx = tempfile.mkdtemp()      # an empty fixtures folder: no network, but the sources file IS read
+            r = subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", fx, "--state", os.path.join(fx, "s.json"), "--out", out], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 1, fname)
+            self.assertIn("has a typo and could not be read", r.stderr)
+            self.assertIn(fname.replace("__", os.sep), r.stderr)
+            self.assertNotIn("Traceback", r.stderr)
+
+    def test_emptied_signals_publish_fine_end_to_end(self):
+        import subprocess
+        proj = self._project_with(**{"editorial__signals.json": '{"signals": []}'})
+        out = os.path.join(self.tmp, "o2", "feed.json")
+        r = subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--editorial-only", "--out", out], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.load(open(out))["signals"], [])
+        b = subprocess.run([sys.executable, os.path.join(proj, "tools", "build_site.py")], capture_output=True, text=True)
+        self.assertEqual(b.returncode, 0, b.stderr)
+
+
 class LevelPreview(unittest.TestCase):
     def test_five_scenarios_cover_levels_one_to_five(self):
         import build_site
         baseline = fresh_baseline()
-        signals = publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
+        signals = dload("signals.json")["signals"]
         snap = publish.build_feed(baseline, signals, {}, {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}, publish.now_utc())
         feeds = build_site.scenario_feeds(snap)
         self.assertEqual([f["overall"]["level"] for f in feeds], [1, 2, 3, 4, 5])

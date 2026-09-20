@@ -1,0 +1,5 @@
+{
+  "_readme": "Optional notice banner shown across the top of the site. Leave text empty for none. Use it when you change a level, for example: 'Cables and GPS raised to High on 3 Oct after ...'. 'until' is an ISO date after which it disappears.",
+  "text": "",
+  "until": ""
+}
