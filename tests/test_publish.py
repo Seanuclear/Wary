@@ -78,7 +78,7 @@ class Build(unittest.TestCase):
         ids = {s["id"] for s in self.doc["sources"]}
         self.assertFalse(ids & {"bbc-uk", "bbc-world", "guardian-uk", "guardian-world", "sky-uk", "sky-world"})
         for s in self.doc["sources"]:
-            self.assertTrue(urlparse_host(s["url"]).endswith(("gov.uk", "mi5.gov.uk", "ncsc.gov.uk")), s["url"])
+            self.assertTrue(urlparse_host(s["url"]).endswith(("gov.uk", "mi5.gov.uk", "ncsc.gov.uk", "cisa.gov")), s["url"])
 
     def test_weather_keyed_by_region_and_no_warnings_row_dropped(self):
         self.assertEqual(len(self.feed["weather"]["se"]), 1)
@@ -346,7 +346,7 @@ class LowTouch(unittest.TestCase):
         f = publish.build_feed(self.base, [], {}, official, self.now)
         cyber = next(a for a in f["areas"] if a["id"] == "cyber")
         self.assertEqual(cyber["level"], 4)
-        self.assertIn("Raised automatically", cyber["reason"])
+        self.assertIn("Raised to High for up to 72 hours", cyber["reason"])
         self.assertTrue(all(a["level"] <= 4 for a in f["areas"]))
         self.assertEqual(f["auto_notices"][0]["text"], "COBR")
 
@@ -440,7 +440,7 @@ class LevelFive(unittest.TestCase):
         f = publish.build_feed(base, [], {}, off, self.now)
         self.assertEqual(f["overall"]["level"], 5)
         sec = next(a for a in f["areas"] if a["id"] == "security")
-        self.assertIn("Raised automatically to Critical", sec["reason"])
+        self.assertIn("Raised to Critical for up to 72 hours", sec["reason"])
 
     def test_official_headlines_carry_the_sources_own_summary(self):
         base = fresh_baseline()
@@ -522,7 +522,7 @@ class FallBack(unittest.TestCase):
         f = self.feed("SEVERE", old, decay_days=90)
         cyber = self.area(f, "cyber")
         self.assertEqual((cyber["level"], cyber["lowered"], cyber["basis"]), (2, True, "decayed"))
-        self.assertIn("Lowered automatically", cyber["reason"])
+        self.assertIn("not reporting anything unusual", cyber["reason"])
         self.assertEqual(self.area(f, "security")["level"], 3)     # terrorism does not decay: it follows MI5
 
     def test_recently_reviewed_areas_do_not_decay(self):
@@ -620,6 +620,499 @@ class Cables(unittest.TestCase):
         self.put({"success": True, "result": {"annotations": [self.ann(1)]}})
         checks["internet"] = publish.check_internet(self.tmp, self.now, "x")
         self.assertEqual(publish.auto_rules([], checks, self.now)[0], {})
+
+
+class SignalUpkeep(unittest.TestCase):
+    """Signals look after themselves: dead links retire them, and very old ones fall away."""
+
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.base = fresh_baseline()
+        self.empty = {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}
+
+    def sig(self, sid, url="https://example.test/a", days=5, **kw):
+        d = {"id": sid, "cats": ["comms"], "tier": 2, "date": (self.now - timedelta(days=days)).strftime("%Y-%m-%d"), "source": "s",
+             "title": "t", "summary": "x", "url": url, "background": False}
+        d.update(kw)
+        return d
+
+    def test_one_404_does_not_retire_but_two_separate_checks_do(self):
+        s = [self.sig("a")]
+        links, gone = publish.check_links(s, {}, self.now, lambda u: 404)
+        self.assertEqual(gone, set())
+        later = self.now + timedelta(hours=25)
+        links2, gone2 = publish.check_links(s, {"links": links}, later, lambda u: 404)
+        self.assertEqual(gone2, {"a"})
+
+    def test_a_working_link_resets_the_count(self):
+        s = [self.sig("a")]
+        links, _ = publish.check_links(s, {}, self.now, lambda u: 404)
+        links, _ = publish.check_links(s, {"links": links}, self.now + timedelta(hours=25), lambda u: 200)
+        self.assertEqual(links["https://example.test/a"]["fails"], 0)
+
+    def test_blocked_or_broken_checks_never_retire_anything(self):
+        s = [self.sig("a")]
+        state = {}
+        for i, code in enumerate([403, None, 500, 429, 403]):
+            state = {"links": publish.check_links(s, state, self.now + timedelta(hours=25 * (i + 1)), lambda u, c=code: c)[0]}
+        self.assertEqual(publish.check_links(s, state, self.now + timedelta(days=9), lambda u: 403)[1], set())
+
+    def test_links_are_checked_about_once_a_day_and_once_per_url(self):
+        calls = []
+        s = [self.sig("a"), self.sig("b")]
+        publish.check_links(s, {}, self.now, lambda u: calls.append(u) or 200)
+        self.assertEqual(len(calls), 1)
+        state = {"links": publish.check_links(s, {}, self.now, lambda u: 200)[0]}
+        calls.clear()
+        publish.check_links(s, state, self.now + timedelta(hours=2), lambda u: calls.append(u) or 200)
+        self.assertEqual(calls, [])
+
+    def test_retired_signals_disappear_from_the_feed(self):
+        f = publish.build_feed(self.base, [self.sig("a"), self.sig("b", url="https://example.test/b")], {}, self.empty, self.now, retired={"a"})
+        self.assertEqual([x["id"] for x in f["signals"]], ["b"])
+
+    def test_signals_past_the_maximum_age_fall_away_unless_kept(self):
+        old, kept, recent = self.sig("old", days=400), self.sig("kept", days=400, keep=True), self.sig("recent", days=100)
+        f = publish.build_feed(self.base, [old, kept, recent], {}, self.empty, self.now)
+        self.assertEqual({x["id"] for x in f["signals"]}, {"kept", "recent"})
+
+    def test_link_cache_survives_in_the_state_and_forgets_removed_signals(self):
+        links, _ = publish.check_links([self.sig("a")], {}, self.now, lambda u: 200)
+        st = publish.update_state({"first_seen": {}}, set(), self.now, None, links)
+        self.assertIn("https://example.test/a", st["links"])
+        self.assertEqual(publish.update_state(st, set(), self.now)["links"], links)
+        cleaned, _ = publish.check_links([self.sig("z", url="https://example.test/z")], st, self.now, lambda u: 200)
+        self.assertNotIn("https://example.test/a", cleaned)
+
+
+class Evidence(unittest.TestCase):
+    """Sensible automation: DIFFERENT official statements about hostile activity, counted over 30 days, lift an area to Elevated."""
+
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.base = fresh_baseline()
+        for a in self.base["areas"].values():
+            a["level"] = 2
+        self.empty = {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}
+
+    def item(self, title, days=3, source="GOV.UK: Ministry of Defence", summary="", iid=None):
+        return {"id": iid or "i" + str(abs(hash(title)) % 10**7), "title": title, "summary": summary, "source": source, "url": "https://www.gov.uk/x",
+                "date": (self.now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ"), "cats": ["cyber"], "background": False}
+
+    def area(self, f, a):
+        return next(x for x in f["areas"] if x["id"] == a)
+
+    # ---- classification ----
+    def test_hostile_activity_against_the_uk_counts(self):
+        self.assertIn("cyber", publish.evidence_areas(self.item("NCSC exposes Russian state-linked cyber campaign against UK organisations", source="NCSC news")))
+        self.assertIn("comms", publish.evidence_areas(self.item("Royal Navy shadows Russian vessels targeting UK undersea cables")))
+
+    def test_routine_or_foreign_items_do_not_count(self):
+        for title in ("New NCSC guidance for small businesses",
+                      "Defence Secretary statement on Russian attacks on Ukrainian energy infrastructure",
+                      "UK and Russia sanctions update",
+                      "Recruitment fair dates announced"):
+            self.assertEqual(publish.evidence_areas(self.item(title)), set(), title)
+
+    def test_needs_a_hostile_actor_and_a_threat_and_an_area(self):
+        self.assertEqual(publish.evidence_areas(self.item("Russian delegation visits the UK for energy talks")), set())      # no threat
+        self.assertEqual(publish.evidence_areas(self.item("Cyber attack on a UK council")), set())                            # no hostile actor named
+
+    # ---- counting ----
+    def test_near_duplicate_statements_count_once(self):
+        a = self.item("Russian state-linked cyber campaign targets UK networks", iid="a")
+        b = self.item("UK and allies expose Russian state-linked cyber campaign targeting UK networks", iid="b")
+        ev, _ = publish.compute_evidence([a, b], {}, self.now)
+        self.assertEqual(ev["cyber"]["count"], 1)
+
+    def test_two_different_statements_count_twice(self):
+        a = self.item("Russian state-linked cyber campaign targets UK networks", iid="a")
+        b = self.item("Iranian hackers target UK water utilities in cyber attack warning", iid="b", source="NCSC news")
+        ev, store = publish.compute_evidence([a, b], {}, self.now)
+        self.assertEqual(ev["cyber"]["count"], 2)
+        self.assertEqual(len(store), 2)
+
+    def test_evidence_is_remembered_between_runs_and_expires_after_the_window(self):
+        a = self.item("Russian state-linked cyber campaign targets UK networks", days=20, iid="a")
+        _, store = publish.compute_evidence([a], {}, self.now)
+        ev, _ = publish.compute_evidence([], {"evidence": store}, self.now + timedelta(days=5))     # feed has rolled over, memory has not
+        self.assertEqual(ev["cyber"]["count"], 1)
+        ev, kept = publish.compute_evidence([], {"evidence": store}, self.now + timedelta(days=15))  # now 35 days old
+        self.assertEqual((ev["cyber"]["count"], kept), (0, []))
+
+    # ---- levels ----
+    def test_two_statements_move_an_area_from_aware_to_elevated_without_the_editor(self):
+        ev = {"cyber": {"count": 2, "items": [{"title": "T1", "source": "NCSC news", "date": "2026-09-01T00:00:00Z", "url": "https://x.test/1"}, {"title": "T2", "source": "GOV.UK", "date": "2026-09-05T00:00:00Z", "url": "https://x.test/2"}]}}
+        f = publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE", evidence=ev), self.now)
+        cyber = self.area(f, "cyber")
+        self.assertEqual((cyber["level"], cyber["basis"]), (3, "evidence"))
+        self.assertIn("Raised to Elevated by official evidence", cyber["reason"])
+        self.assertEqual(len(cyber["evidence"]), 2)
+        self.assertEqual(f["overall"]["level"], 3)     # the overall level is the highest area
+
+    def test_one_statement_is_noted_but_does_not_change_the_level(self):
+        ev = {"cyber": {"count": 1, "items": [{"title": "T1", "source": "NCSC news", "date": "2026-09-01T00:00:00Z", "url": "https://x.test/1"}]}}
+        f = publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE", evidence=ev), self.now)
+        cyber = self.area(f, "cyber")
+        self.assertEqual(cyber["level"], 2)
+        self.assertIn("2 different ones", cyber["reason"])
+        self.assertEqual(len(cyber["evidence"]), 1)
+
+    def test_the_level_falls_back_by_itself_when_the_evidence_ages_out(self):
+        a = self.item("Russian state-linked cyber campaign targets UK networks", days=10, iid="a")
+        b = self.item("Iranian hackers target UK water utilities in cyber attack warning", days=12, iid="b", source="NCSC news")
+        ev_now, store = publish.compute_evidence([a, b], {}, self.now)
+        up = publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE", evidence=ev_now), self.now)
+        self.assertEqual(self.area(up, "cyber")["level"], 3)
+        later = self.now + timedelta(days=25)
+        ev_later, _ = publish.compute_evidence([], {"evidence": store}, later)
+        down = publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE", evidence=ev_later), later)
+        self.assertEqual(self.area(down, "cyber")["level"], 2)
+
+    def test_evidence_alone_never_makes_high_or_critical(self):
+        ev = {a: {"count": 50, "items": []} for a in publish.EVIDENCE_AREAS}
+        f = publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE", evidence=ev), self.now)
+        self.assertTrue(all(a["level"] <= 3 for a in f["areas"]))
+
+    def test_terrorism_ignores_evidence_and_follows_mi5(self):
+        ev = {"security": {"count": 9, "items": []}}
+        f = publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE", evidence=ev), self.now)
+        self.assertEqual(self.area(f, "security")["level"], 1)
+
+    def test_evidence_lifts_an_area_whose_editor_floor_has_decayed(self):
+        old = json.loads(json.dumps(self.base))
+        for a in old["areas"].values():
+            a["level"], a["as_of"] = 3, (self.now - timedelta(days=200)).strftime("%Y-%m-%d")
+        ev = {"comms": {"count": 2, "items": []}}
+        f = publish.build_feed(old, [], {}, dict(self.empty, terror="MODERATE", evidence=ev), self.now)
+        self.assertEqual(self.area(f, "comms")["level"], 3)      # kept up by evidence
+        self.assertEqual(self.area(f, "cyber")["level"], 2)      # no evidence: settled to Aware
+
+    def test_evidence_can_be_switched_off_by_the_brake_setting(self):
+        ev = {"cyber": {"count": 5, "items": []}}
+        off = dict(self.empty, terror="MODERATE", evidence={})
+        self.assertEqual(self.area(publish.build_feed(self.base, [], {}, off, self.now), "cyber")["level"], 2)
+
+    def test_end_to_end_two_official_statements_raise_an_area_through_the_real_publisher(self):
+        import shutil
+        import subprocess
+        tmp = tempfile.mkdtemp()
+        proj = os.path.join(tmp, "proj")
+        shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+        b = json.load(open(os.path.join(proj, "editorial", "baseline.json")))
+        for a in b["areas"].values():
+            a["level"], a["as_of"] = 2, self.now.strftime("%Y-%m-%d")
+        json.dump(b, open(os.path.join(proj, "editorial", "baseline.json"), "w"))
+        fx = os.path.join(tmp, "fx")
+        os.makedirs(fx)
+        put = lambda n, x: open(os.path.join(fx, n), "w").write(x)
+        put("mi5-level.html", "<p>The current national threat level is MODERATE.</p>")
+        for n in ("gov-homeoffice.atom", "gov-cabinet.atom", "gov-desnz.atom"):
+            put(n, '<rss version="2.0"><channel></channel></rss>')
+        put("ncsc.xml", rss([("NCSC warns of Iranian hackers targeting UK water utilities in cyber attack", "Advice.", self.now - timedelta(days=4))]))
+        put("gov-mod.atom", rss([("Russian state-linked cyber campaign targets UK defence networks, Ministry of Defence says", "Statement.", self.now - timedelta(days=2))]))
+        out, st = os.path.join(tmp, "site", "feed.json"), os.path.join(tmp, "state.json")
+        subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", fx, "--state", st, "--out", out], check=True, capture_output=True)
+        f = json.load(open(out))
+        cyber = next(a for a in f["areas"] if a["id"] == "cyber")
+        self.assertEqual((cyber["level"], cyber["basis"]), (3, "evidence"))
+        self.assertEqual(len(cyber["evidence"]), 2)
+        self.assertEqual(f["overall"]["level"], 3)
+        self.assertEqual(len(json.load(open(st))["evidence"]), 2)
+
+
+class HandsOff(unittest.TestCase):
+    """The site should not depend on the editor's words going stale: generated text takes over, and the change log writes itself."""
+
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.base = fresh_baseline()
+        self.empty = {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}
+
+    def area(self, f, a):
+        return next(x for x in f["areas"] if x["id"] == a)
+
+    def old(self, days=200):
+        b = json.loads(json.dumps(self.base))
+        for a in b["areas"].values():
+            a["as_of"] = (self.now - timedelta(days=days)).strftime("%Y-%m-%d")
+        return b
+
+    def test_fresh_editor_text_is_kept(self):
+        f = publish.build_feed(self.base, [], {}, dict(self.empty, terror="SEVERE"), self.now)
+        self.assertEqual(self.area(f, "energy")["status"], self.base["areas"]["energy"]["status"])
+
+    def test_stale_editor_text_is_replaced_by_natural_data_only_wording(self):
+        f = publish.build_feed(self.old(), [], {}, dict(self.empty, terror="SEVERE"), self.now)
+        for a in ("energy", "cyber", "comms", "military", "supply"):
+            st = self.area(f, a)
+            self.assertEqual(st["status"], publish.QUIET_STATUS[a])
+            self.assertNotIn("Winter electricity", st["status"])
+            self.assertIn("not reporting anything unusual", st["reason"])
+            self.assertIn("We watch", st["reason"])
+
+    def test_wording_never_sounds_abandoned(self):
+        f = publish.build_feed(self.old(), [], {}, dict(self.empty, terror="SEVERE"), self.now)
+        for a in f["areas"]:
+            blob = (a["status"] + " " + a["reason"]).lower()
+            for phrase in ("out of date", "not shown", "last reviewed", "last written", "editor's last", "not been reviewed", "baseline"):
+                self.assertNotIn(phrase, blob, (a["id"], phrase))
+            self.assertIsNone(a["baseline_as_of"])
+
+    def test_generated_wording_follows_the_evidence(self):
+        ev = {"cyber": {"count": 2, "items": []}, "comms": {"count": 1, "items": []}}
+        f = publish.build_feed(self.old(), [], {}, dict(self.empty, terror="SEVERE", evidence=ev), self.now)
+        self.assertIn("2 separate official statements in the last 30 days point to hostile", self.area(f, "cyber")["status"])
+        self.assertIn("One recent official statement noted", self.area(f, "comms")["status"])
+
+    def test_terrorism_text_follows_mi5_and_drops_the_stale_background(self):
+        f = publish.build_feed(self.old(), [], {}, dict(self.empty, terror="SUBSTANTIAL"), self.now)
+        sec = self.area(f, "security")
+        self.assertIn("SUBSTANTIAL", sec["status"])
+        self.assertNotIn("Background from the editor", sec["reason"])
+
+    def test_terrorism_with_no_reading_and_stale_text_says_so_plainly(self):
+        sec = self.area(publish.build_feed(self.old(), [], {}, self.empty, self.now), "security")
+        self.assertIn("could not be read", sec["status"])
+
+    def test_review_line_only_appears_when_an_editor_level_is_holding_something_up(self):
+        self.assertIsNotNone(publish.build_feed(self.base, [], {}, dict(self.empty, terror="MODERATE"), self.now)["reviewed"])
+        calm = json.loads(json.dumps(self.base))
+        for a in calm["areas"].values():
+            a["level"] = 2
+        self.assertIsNone(publish.build_feed(calm, [], {}, dict(self.empty, terror="MODERATE"), self.now)["reviewed"])
+        self.assertIsNone(publish.build_feed(self.old(), [], {}, dict(self.empty, terror="SEVERE"), self.now)["reviewed"])
+
+    # ---- the change log writes itself ----
+    def areas(self, **lv):
+        names = {"energy": "Power, gas and fuel", "cyber": "Cyber attacks on services", "comms": "Cables, GPS and phone networks", "security": "Terrorism and sabotage", "military": "Military", "supply": "Supplies"}
+        return [{"id": k, "name": names[k], "level": lv.get(k, 2), "basis": "evidence" if k == "cyber" else "editor"} for k in names]
+
+    def test_no_previous_run_means_no_entry(self):
+        self.assertEqual(publish.level_changes(None, self.areas(), 2, self.now), [])
+
+    def test_no_change_means_no_entry(self):
+        prev = {"overall": 2, "areas": {a["id"]: 2 for a in self.areas()}}
+        self.assertEqual(publish.level_changes(prev, self.areas(), 2, self.now), [])
+
+    def test_overall_rise_is_logged_with_the_reason(self):
+        prev = {"overall": 2, "areas": {a["id"]: 2 for a in self.areas()}}
+        e = publish.level_changes(prev, self.areas(cyber=3), 3, self.now)[0]
+        self.assertEqual((e["level"], e["auto"]), (3, True))
+        self.assertIn("raised: Aware to Elevated", e["title"])
+        self.assertIn("Cyber attacks on services: Aware to Elevated (official evidence)", e["text"])
+
+    def test_area_only_change_is_logged(self):
+        prev = {"overall": 3, "areas": {**{a["id"]: 2 for a in self.areas()}, "security": 3}}
+        e = publish.level_changes(prev, self.areas(security=3, cyber=3), 3, self.now)[0]
+        self.assertEqual(e["title"], "Area levels changed")
+
+    def test_end_to_end_second_run_writes_an_automatic_history_entry_and_feed(self):
+        import shutil
+        import subprocess
+        tmp = tempfile.mkdtemp()
+        proj = os.path.join(tmp, "proj")
+        shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+        b = json.load(open(os.path.join(proj, "editorial", "baseline.json")))
+        for a in b["areas"].values():
+            a["level"], a["as_of"] = 2, self.now.strftime("%Y-%m-%d")
+        json.dump(b, open(os.path.join(proj, "editorial", "baseline.json"), "w"))
+        fx = os.path.join(tmp, "fx")
+        os.makedirs(fx)
+        put = lambda n, x: open(os.path.join(fx, n), "w").write(x)
+        for n in ("gov-mod.atom", "gov-homeoffice.atom", "gov-cabinet.atom", "gov-desnz.atom", "ncsc.xml"):
+            put(n, '<rss version="2.0"><channel></channel></rss>')
+        out, st = os.path.join(tmp, "site", "feed.json"), os.path.join(tmp, "state.json")
+
+        def run(level):
+            put("mi5-level.html", f"<p>The current national threat level is {level}.</p>")
+            subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", fx, "--state", st, "--out", out], check=True, capture_output=True)
+            return json.load(open(out))
+
+        first = run("SUBSTANTIAL")
+        self.assertFalse([e for e in first["history"] if e.get("auto")])        # first run: nothing to compare with
+        second = run("SEVERE")
+        auto = [e for e in second["history"] if e.get("auto")]
+        self.assertEqual(len(auto), 1)
+        self.assertIn("raised: Aware to Elevated", auto[0]["title"])
+        atom = open(os.path.join(os.path.dirname(out), "history.xml"), encoding="utf-8").read()
+        self.assertIn("raised: Aware to Elevated", atom)
+        third = run("SEVERE")                                                   # no further change: no further entry
+        self.assertEqual(len([e for e in third["history"] if e.get("auto")]), 1)
+
+
+class Workflow(unittest.TestCase):
+    """The publishing robot must survive GitHub's habits: busy top-of-hour schedules and the 60-day inactivity switch-off."""
+
+    def setUp(self):
+        self.text = open(os.path.join(ROOT, ".github", "workflows", "publish.yml"), encoding="utf-8").read()
+
+    def test_runs_about_every_30_minutes_but_not_at_the_congested_top_of_the_hour(self):
+        cron = re.search(r'cron: "([^"]+)"', self.text).group(1)
+        minutes = [int(m) for m in cron.split()[0].split(",")]
+        self.assertEqual(len(minutes), 2)
+        self.assertTrue(all(m not in (0, 30) for m in minutes))
+        self.assertEqual(cron.split()[1:], ["*", "*", "*", "*"])
+
+    def test_has_a_keep_alive_that_can_never_block_publishing(self):
+        step = self.text[self.text.index("Keep the schedule alive"):self.text.index("configure-pages")]
+        self.assertIn("continue-on-error: true", step)
+        self.assertIn("git commit --allow-empty", step)
+        self.assertIn("-ge 40", step)                       # well inside GitHub's 60 days
+        self.assertIn("github.event_name == 'schedule'", step)
+
+    def test_write_access_is_limited_to_the_build_job(self):
+        top = self.text[:self.text.index("jobs:")]
+        self.assertIn("contents: read", top)
+        self.assertNotIn("write", top.split("permissions:")[1])
+        build = self.text[self.text.index("  build:"):self.text.index("  deploy:")]
+        deploy = self.text[self.text.index("  deploy:"):]
+        self.assertIn("contents: write", build)
+        self.assertNotIn("contents: write", deploy)
+        self.assertIn("id-token: write", deploy)
+
+    def test_still_runs_on_every_push_and_by_hand(self):
+        self.assertIn("push:", self.text)
+        self.assertIn("workflow_dispatch:", self.text)
+
+
+class BbcHeadlines(unittest.TestCase):
+    """Optional 'critical news' strip: headline and link only, off by default, never touches a level."""
+
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.tmp = tempfile.mkdtemp()
+
+    def feed(self, name, items):
+        with open(os.path.join(self.tmp, f"bbc-{name}.xml"), "w") as f:
+            f.write(rss(items))
+
+    def test_off_by_default_and_fetches_nothing(self):
+        self.assertEqual(publish.fetch_press(False, self.tmp, self.now), [])
+        self.assertFalse(publish.load_json(os.path.join(ROOT, "site.json"))["bbc_headlines"])
+
+    def test_only_recent_critical_headlines_are_kept(self):
+        self.feed("uk", [("Major incident declared after explosion in city centre", "d", self.now - timedelta(hours=1)),
+                         ("Local council approves new bin collection times", "d", self.now - timedelta(hours=1)),
+                         ("Terror attack alert lifted, police say", "d", self.now - timedelta(hours=9))])
+        self.feed("world", [])
+        got = publish.fetch_press(True, self.tmp, self.now)
+        self.assertEqual([g["title"] for g in got], ["Major incident declared after explosion in city centre"])
+
+    def test_world_headlines_need_a_uk_or_nato_link(self):
+        self.feed("uk", [])
+        self.feed("world", [("Cyber attack cripples hospitals in a far-away country", "d", self.now - timedelta(hours=1)),
+                            ("Cyber attack on UK water firms confirmed", "d", self.now - timedelta(hours=1)),
+                            ("NATO says missile strike on member state airbase", "d", self.now - timedelta(hours=2))])
+        titles = [g["title"] for g in publish.fetch_press(True, self.tmp, self.now)]
+        self.assertIn("Cyber attack on UK water firms confirmed", titles)
+        self.assertIn("NATO says missile strike on member state airbase", titles)
+        self.assertNotIn("Cyber attack cripples hospitals in a far-away country", titles)
+
+    def test_headline_and_link_only_capped_at_three(self):
+        self.feed("uk", [(f"Major incident number {i} declared", "SECRET ARTICLE TEXT", self.now - timedelta(minutes=10 * i)) for i in range(1, 8)])
+        self.feed("world", [])
+        got = publish.fetch_press(True, self.tmp, self.now)
+        self.assertEqual(len(got), 3)
+        for g in got:
+            self.assertEqual(set(g), {"title", "url", "published", "source"})
+            self.assertNotIn("SECRET", json.dumps(g))
+
+    def test_a_broken_feed_gives_nothing_not_an_error(self):
+        self.assertEqual(publish.fetch_press(True, os.path.join(self.tmp, "nothing"), self.now), [])
+
+    def test_headlines_never_change_a_level(self):
+        base = fresh_baseline()
+        empty = {"terror": "MODERATE", "items": [], "weather": {}, "used": [], "issues": []}
+        plain = publish.build_feed(base, [], {}, empty, self.now)
+        with_press = publish.build_feed(base, [], {}, empty, self.now, press=[{"title": "Terror attack in London", "url": "https://x.test", "published": "2026-09-20T10:00:00Z", "source": "BBC News"}])
+        self.assertEqual([a["level"] for a in plain["areas"]], [a["level"] for a in with_press["areas"]])
+        self.assertEqual(len(with_press["press"]), 1)
+
+
+class Wording(unittest.TestCase):
+    """The 'What is happening' text should read like a live monitor, using only data that was actually read."""
+
+    def setUp(self):
+        self.now = publish.now_utc()
+        self.base = json.loads(json.dumps(fresh_baseline()))
+        for a in self.base["areas"].values():
+            a["as_of"] = (self.now - timedelta(days=200)).strftime("%Y-%m-%d")
+        self.checks = {"alerts": {"state": "clear"}, "grid": {"state": "clear"}, "space": {"state": "clear"}, "internet": {"state": "clear", "text": "None in 24 hours"}}
+        self.items = [{"id": "x", "cats": ["cyber"], "title": "NCSC publishes guidance on patching", "summary": "", "source": "NCSC news", "date": (self.now - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ"), "url": "https://x.test", "background": False}]
+
+    def feed(self, checks=None, changes=None, terror="MODERATE"):
+        off = {"terror": terror, "items": self.items, "weather": {}, "used": [], "issues": [], "checks": checks if checks is not None else self.checks}
+        return publish.build_feed(self.base, [], {}, off, self.now, area_changes=changes)
+
+    def area(self, f, a):
+        return next(x for x in f["areas"] if x["id"] == a)
+
+    def test_quiet_paragraphs_report_what_the_monitors_say(self):
+        f = self.feed()
+        self.assertIn("no system warnings in the last 24 hours", self.area(f, "energy")["reason"])
+        self.assertIn("no UK internet disruptions in the last 24 hours", self.area(f, "comms")["reason"])
+        self.assertIn("no live Emergency Alerts", self.area(f, "security")["reason"])
+        self.assertIn("published on", self.area(f, "cyber")["reason"])
+        self.assertIn("NCSC publishes guidance on patching", self.area(f, "cyber")["reason"])
+
+    def test_active_monitors_are_reported_honestly(self):
+        c = dict(self.checks, grid={"state": "notice"}, space={"state": "notice"}, internet={"state": "notice", "text": "Disruption reported: cable damage"})
+        f = self.feed(c)
+        self.assertIn("routine market notice", self.area(f, "energy")["reason"])
+        self.assertIn("do not mean supplies are at risk", self.area(f, "energy")["reason"])
+        self.assertIn("Space weather is active", self.area(f, "comms")["reason"])
+        self.assertIn("links to cable damage", self.area(f, "comms")["reason"])
+        self.assertNotIn("(disruption reported", self.area(f, "comms")["reason"].lower())
+        self.assertEqual(self.area(f, "energy")["status"], "The grid operator has issued a routine notice. Nothing points to a shortage.")
+        self.assertEqual(self.area(f, "comms")["status"], "Some UK internet disruption is being reported. The cause is not confirmed.")
+
+    def test_missing_or_unreadable_monitors_are_simply_left_out(self):
+        f = self.feed({"grid": {"state": "unknown"}})
+        self.assertNotIn("grid operator has issued", self.area(f, "energy")["reason"])
+        self.assertNotIn("Cloudflare", self.area(f, "comms")["reason"])
+
+    def test_last_change_sentence_appears_when_known(self):
+        f = self.feed(changes={"cyber": {"date": "2026-09-12T10:00:00Z", "from": 2, "to": 3}})
+        self.assertIn("This area last changed on 12 Sep, from Aware to Elevated.", self.area(f, "cyber")["reason"])
+        self.assertNotIn("last changed", self.area(f, "energy")["reason"])
+
+    def test_track_changes_remembers_when_an_area_moved(self):
+        areas = [{"id": "cyber", "level": 3}, {"id": "energy", "level": 2}]
+        m = publish.track_changes({"areas": {"cyber": 2, "energy": 2}}, areas, {}, self.now)
+        self.assertEqual(m["cyber"]["from"], 2)
+        self.assertNotIn("energy", m)
+        self.assertEqual(publish.track_changes({"areas": {"cyber": 3, "energy": 2}}, areas, m, self.now), m)
+
+    def test_terrorism_wording_uses_mi5_and_alerts(self):
+        sec = self.area(self.feed(terror="SEVERE"), "security")
+        self.assertIn("SEVERE", sec["status"])
+        self.assertIn("follows it up and down", sec["reason"])
+        self.assertIn("We watch MI5's threat level", sec["reason"])
+
+    def test_stale_banner_is_off_unless_switched_on(self):
+        import shutil
+        import subprocess
+        tmp = tempfile.mkdtemp()
+        proj = os.path.join(tmp, "proj")
+        shutil.copytree(ROOT, proj, ignore=shutil.ignore_patterns("site", "data", "__pycache__", ".git"))
+        cfg = json.load(open(os.path.join(proj, "site.json")))
+        cfg["stale_days"] = 60
+        cfg.pop("stale_banner", None)
+        json.dump(cfg, open(os.path.join(proj, "site.json"), "w"))
+        fx = os.path.join(tmp, "fx")
+        os.makedirs(fx)
+        for n in ("gov-mod.atom", "gov-homeoffice.atom", "gov-cabinet.atom", "gov-desnz.atom", "ncsc.xml"):
+            open(os.path.join(fx, n), "w").write('<rss version="2.0"><channel></channel></rss>')
+        open(os.path.join(fx, "mi5-level.html"), "w").write("<p>The current national threat level is SEVERE.</p>")
+        out = os.path.join(tmp, "site", "feed.json")
+        args = [sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", fx, "--state", os.path.join(tmp, "s.json"), "--out", out]
+        subprocess.run(args, check=True, capture_output=True)
+        self.assertEqual(json.load(open(out))["stale_days"], 0)
+        cfg["stale_banner"] = True
+        json.dump(cfg, open(os.path.join(proj, "site.json"), "w"))
+        subprocess.run(args, check=True, capture_output=True)
+        self.assertEqual(json.load(open(out))["stale_days"], 60)
 
 
 class LevelPreview(unittest.TestCase):

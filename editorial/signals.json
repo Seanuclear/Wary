@@ -1,5 +1,5 @@
 {
-  "_readme": "Curated signals in YOUR OWN WORDS, newest first is not required (the site sorts them). Each needs a link to the original report. Write the summary yourself and never paste text from a news site. 'tier': 1 official, 2 established press, 3 specialist. 'precision' is 'day' or 'month'. 'background': true for older context. Areas: energy, cyber, comms, security, military, supply.",
+  "_readme": "Curated signals in YOUR OWN WORDS, newest first is not required (the site sorts them). Each needs a link to the original report. Write the summary yourself and never paste text from a news site. 'tier': 1 official, 2 established press, 3 specialist. 'precision' is 'day' or 'month'. 'background': true for older context. Areas: energy, cyber, comms, security, military, supply. Optional \"keep\": true stops a signal from disappearing at the maximum age (365 days by default). Signals also retire by themselves if their link returns 404 or 410 on two separate daily checks.",
   "signals": [
     {
       "id": "s01",

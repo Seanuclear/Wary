@@ -194,6 +194,7 @@ dialog#wiz::backdrop,dialog#disp::backdrop{background:rgba(0,0,0,.78)}
 .cc[data-state="alert"]{outline:4px solid var(--l5);outline-offset:-4px}
 @media (max-width:520px){.cs{grid-template-columns:1fr}}
 
+#press-list li:first-child{border-top:0}
 /* start here */
 .start{border:3px solid var(--rule);background:var(--panel)}
 .start-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 20px;padding:16px 18px;border-bottom:3px solid var(--rule)}
@@ -379,6 +380,13 @@ footer p{max-width:50em;color:var(--hero-fg)}
       <h2 id="h-checks">Live checks</h2>
       <p class="sub" id="checks-sub">Official facts, checked when this page was last built. A check only says &ldquo;none&rdquo; when it has positively read that. If it cannot, it says so.</p>
       <div class="cs" id="checks-grid" role="list"></div>
+      <p class="meta" style="margin-top:12px">Think something is happening now? Check <a href="https://www.gov.uk/alerts" target="_blank" rel="noopener noreferrer">GOV.UK Emergency Alerts</a> and <a href="https://www.bbc.co.uk/news" target="_blank" rel="noopener noreferrer">BBC News</a>.</p>
+    </section>
+
+    <section id="press" aria-labelledby="h-press" hidden>
+      <h2 id="h-press">In the news</h2>
+      <p class="sub">Headlines from BBC News that match a strict &ldquo;critical news&rdquo; filter, from the last few hours. They are linked, not copied, and they are not part of the rating.</p>
+      <ul class="mini box" id="press-list" style="list-style:none"></ul>
     </section>
 
     <section id="now" aria-labelledby="h-now" hidden><div id="now-box"></div></section>
@@ -427,9 +435,10 @@ footer p{max-width:50em;color:var(--hero-fg)}
         <div class="box">
           <h3>The rules</h3>
           <ul>
-            <li>Each area has a <strong>baseline</strong> level that the editor sets from official assessments and expert statements, and reviews about once a month. The page shows when. If an area goes unreviewed for 90 days, any level above Aware steps down to Aware by itself.</li>
+            <li>Each area has a <strong>standing level</strong> that the editor can set from official assessments, and reviews from time to time. The page shows when. If an area goes unreviewed for 90 days, any level above Aware settles down to Aware by itself.</li>
+            <li><strong>Official evidence moves areas by itself.</strong> When two or more different official statements in the last 30 days (from GOV.UK departments and the NCSC) name hostile or state-linked activity affecting an area, that area rises to Elevated. It falls back on its own as the statements age out. They are listed under the area, so you can read them.</li>
             <li>The <strong>terrorism</strong> area follows the official MI5 threat level automatically, up and down.</li>
-            <li>A few clear <strong>official</strong> triggers can raise other areas for up to 72 hours, labelled &ldquo;raised automatically&rdquo;: the NCSC declaring a nationally significant cyber incident, the grid operator warning of demand control or load shedding, or an official statement about damage to undersea cables.</li>
+            <li>A few clear <strong>official</strong> triggers can raise other areas to High for up to 72 hours, labelled &ldquo;raised automatically&rdquo;: the NCSC declaring a nationally significant cyber incident, the grid operator warning of demand control or load shedding, or an official statement about damage to undersea cables.</li>
             <li>Nothing from the press moves a level. Other automatic headlines are shown for information only.</li>
             <li><strong>Level 5</strong> is set automatically only for a very clear official signal that has held for over 6 hours: the official terrorism threat level at CRITICAL, or the government naming an attack on the UK while convening COBR. Until it has held, the area shows High. Real emergencies will reach you first through Emergency Alerts and the government, not through this page.</li>
             <li>This does not replace Emergency Alerts, the police, your council or the BBC.</li>
@@ -463,8 +472,8 @@ footer p{max-width:50em;color:var(--hero-fg)}
         <div class="box">
           <h3>Who runs this</h3>
           <p>Run by {{OWNER}}. It is non-commercial, carries no advertising, and is not an official service. No government body endorses it.</p>
-          <p>Every summary in “Signals” is written or checked by the editor from public reporting and links to the original. The automatic headlines come only from official, open-licensed feeds.</p>
-          <p>Wary was built with the help of an AI assistant. The editor chooses and checks the levels, and is responsible for what the site says.</p>
+          <p>The levels and the change log are calculated automatically from official data, around the clock, using the rules under “How the ratings work”. They respond within the hour and do not depend on anyone being awake. Any “signals” are optional short summaries written by the editor in their own words, each linking to the original. The automatic headlines come only from official, open-licensed feeds.</p>
+          <p>The editor maintains the rules and is responsible for what the site says.</p>
           {{ADDRESS_LINE}}
           {{CONTACT_LINE}}
           {{DONATE_BLOCK}}
@@ -476,6 +485,7 @@ footer p{max-width:50em;color:var(--hero-fg)}
           <li><strong>Live checks.</strong> Emergency Alerts status from GOV.UK (Open Government Licence v3.0). Electricity grid notices from Elexon BMRS: contains BMRS data © Elexon Limited copyright and database right. If a check cannot be read, the strip says so instead of guessing.</li>
           <li><strong>Space weather.</strong> Storm levels from the NOAA Space Weather Prediction Center (US government data). UK forecasts come from the <a href="https://weather.metoffice.gov.uk/specialist-forecasts/space-weather" target="_blank" rel="noopener noreferrer">Met Office</a>, which forecasts space weather around the clock, and its content is available under the Open Government Licence. It is shown so a GPS or grid problem is not mistaken for an attack, and it never changes a level.</li>
           <li><strong>UK internet (if shown).</strong> Disruptions seen by Cloudflare Radar, whose data is licensed CC BY-NC 4.0. It is shown for information only and never changes a level.</li>
+          <li><strong>News headlines (only if switched on).</strong> A headline and link from BBC News, for information only. They never change a level. The BBC owns them.</li>
           <li><strong>Threat level.</strong> The UK national terrorism threat level is read from MI5’s website (Crown copyright).</li>
           <li><strong>Official headlines.</strong> From GOV.UK departments and the NCSC. Contains public sector information licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noopener noreferrer">Open Government Licence v3.0</a>.</li>
           <li><strong>Flood warnings.</strong> This uses Environment Agency flood and river level data from the real-time data API (Beta).</li>
@@ -541,7 +551,7 @@ function buildGuidance(D){
   var A={};
 
   A.energy={icon:'i-energy',
-   means:'A power cut of a few hours is the most likely effect, and it usually comes from weather or faults, not attack. Winter margins look comfortable. A few days without power would still affect heating, cooking, phone charging and, in some homes, water pressure.'+(p.powered?' For a household that relies on powered medical equipment even a short cut matters, so plan for it now.':''),items:[]};
+   means:'A power cut of a few hours is the most likely effect, and it usually comes from weather or faults, not attack. A few days without power would still affect heating, cooking, phone charging and, in some homes, water pressure.'+(p.powered?' For a household that relies on powered medical equipment even a short cut matters, so plan for it now.':''),items:[]};
   it(A.energy.items,'e1','Find the mains switches and stopcock for electricity, gas and water'+(sch?', and show '+D.olderRef+'. Present it as a normal house safety job.':'.'),{child:sch});
   it(A.energy.items,'e2','Keep '+Math.max(2,p.adults+D.teens)+' power banks charged, enough for every phone in the house to get a full charge. Recharge them whenever you charge your phone.',{first:1});
   it(A.energy.items,'e6',(p.powered?'Register with your electricity network\u2019s Priority Services Register (it is free) and ask your clinician or equipment supplier what to do in a power cut. Have a charged backup where they advise.':'Register with your electricity network\u2019s Priority Services Register (it is free), and agree who will check on anyone in the home who is over 75 or has limited mobility.'),{when:p.powered||p.mobility,first:p.powered});
@@ -565,13 +575,13 @@ function buildGuidance(D){
   it(A.comms.items,'m4','Check Emergency Alerts are switched on in your phone\u2019s settings.',{first:1});
   it(A.comms.items,'m5','Put your key phone numbers on paper in your kit.');
 
-  A.security={icon:'i-security',means:'The chance that you personally are affected is very small, but the official level says the risk is real and has risen. Awareness and a plan are proportionate. Daily life carries on.',items:[]};
+  A.security={icon:'i-security',means:'The chance that you personally are affected is very small. Awareness and a plan are proportionate, and daily life carries on.',items:[]};
   it(A.security.items,'s1','Learn Run, Hide, Tell'+(sch?', and explain it to '+D.olderRef+' in a calm, simple way.':'.'),{child:sch});
   it(A.security.items,'s2','Ask your '+(D.kids>1?'children\u2019s':'child\u2019s')+' school or nursery how it handles lockdowns and emergencies, and how it would contact you.',{when:K,child:1});
   it(A.security.items,'s3','Save 999, 101 (police, not an emergency) and the Anti-Terrorist Hotline (0800 789 321).');
   it(A.security.items,'s4','When you are out, notice the exits. Trust your instincts, and report anything that feels wrong.');
 
-  A.military={icon:'i-military',means:'There is no public warning of an attack on UK homes. The useful response is to know how official information will reach you, and to keep the basics in the house.',items:[]};
+  A.military={icon:'i-military',means:'The useful response is to know how official information will reach you, and to keep the basics in the house.',items:[]};
   it(A.military.items,'w1','Learn the official advice for a serious incident: go in, stay in, tune in.');
   it(A.military.items,'w2','Know where to listen: BBC Radio 4 and BBC local radio carry emergency information.');
   it(A.military.items,'w3','Read the government\u2019s \u201CPrepare\u201D guidance once. You do not need to keep re-reading it.');
@@ -708,7 +718,7 @@ function retryLookup(){
 
 /* ---------- rendering ---------- */
 function render(){
-  renderTagline(); renderChecks(); renderChanges(); renderNow(); renderKit(); renderStatus(); renderHousehold(); renderHero(); renderStart(); renderAreas(); renderLegend(); renderSignals(); renderLocal(); renderSources();
+  renderPress(); renderTagline(); renderChecks(); renderChanges(); renderNow(); renderKit(); renderStatus(); renderHousehold(); renderHero(); renderStart(); renderAreas(); renderLegend(); renderSignals(); renderLocal(); renderSources();
 }
 function renderHousehold(){
   var b=document.getElementById('hh'), p=profile;
@@ -734,7 +744,7 @@ function renderStatus(){
     if(hrs>3){ st.className='status stale'; tx.textContent='Out of date: last update '+(hrs<24?Math.floor(hrs)+' h ago':Math.floor(hrs/24)+' days ago'); }
     else { st.className='status live'; tx.textContent='Updated '+fmtTime(feed.generated_at); }
   }
-  var rv=feed.reviewed?pd(feed.reviewed):null, SD=feed.stale_days||60, stale=!!(rv&&feed.mode!=='snapshot'&&(Date.now()-rv)/864e5>SD), an=feed.auto_notices||[];
+  var rv=feed.reviewed?pd(feed.reviewed):null, SD=feed.stale_days||0, stale=!!(SD>0&&rv&&feed.mode!=='snapshot'&&(Date.now()-rv)/864e5>SD), an=feed.auto_notices||[];
   if(feed.notice||stale||an.length){
     nb.hidden=false; var w=nb.firstElementChild; w.textContent='';
     if(feed.notice){ w.appendChild(h('strong',{text:'Editor\u2019s note. '})); w.appendChild(document.createTextNode(feed.notice+' ')); }
@@ -778,10 +788,16 @@ function renderHero(){
   root.parentNode.className='hero lv'+o.level;
   root.appendChild(h('p',{'class':'cap'},'Household level today: '+o.level+' of 5'));
   root.appendChild(word);
-  var rvw=feed.reviewed?h('p',{'class':'by',style:'margin-top:.5em',text:'Ratings last reviewed by the editor on '+fmtDate(feed.reviewed)+'.'}):null;
+  var rvw=h('p',{'class':'by',style:'margin-top:.5em',text:'Levels are calculated automatically from official data, checked about every 30 minutes.'});
   root.appendChild(h('div',{'class':'hero-grid'},ladder(o.level),h('div',null,h('p',{'class':'lead',text:L.hero}),drivers,rvw)));
 }
 function ico(id,size){ return useIcon(id,'',size||52); }
+function renderPress(){
+  var sec=document.getElementById('press'), ul=document.getElementById('press-list'); ul.textContent='';
+  var list=feed.press||[]; sec.hidden=!list.length; if(!list.length) return;
+  list.forEach(function(x){ var href=safeHref(x.url);
+    ul.appendChild(h('li',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:x.title}):h('span',{text:x.title}),h('div',{'class':'meta',text:x.source+', '+ago(x.published)}))); });
+}
 function renderTagline(){ var tg=document.querySelector('.tagline'); if(tg) tg.hidden=(feed.overall.level===5); }
 function renderChanges(){
   var box=document.getElementById('changes-box'); box.textContent='';
@@ -918,7 +934,9 @@ function renderStart(){
   box.appendChild(head); box.appendChild(ul); updateMeter();
 }
 function areaSignals(id){
-  return feed.signals.filter(function(x){ return x.cats.indexOf(id)>-1; }).slice(0,3);
+  var a=(feed.areas||[]).filter(function(x){ return x.id===id; })[0], seen={};
+  ((a&&a.evidence)||[]).forEach(function(e){ seen[e.title]=1; });     // do not list the same statement twice
+  return feed.signals.filter(function(x){ return x.cats.indexOf(id)>-1&&!seen[x.title]; }).slice(0,3);
 }
 function renderAreas(){
   var root=document.getElementById('areas'); root.textContent='';
@@ -929,7 +947,7 @@ function renderAreas(){
       (function(){ var i=useIcon(C.icon,'ico',52); return i; })(),
       h('span',{'class':'area-name',text:a.name}),
       pips(a.level),
-      h('span',{'class':'lvl'},(function(){ var em=h('em',{text:String(a.level)}); return em; })(),LEVELS[a.level-1].name+(a.basis==='official'?' (follows the official MI5 level)':a.basis==='raised'?' (raised automatically)':a.lowered?' (lowered automatically)':a.level>a.baseline?' (raised automatically)':'')),
+      h('span',{'class':'lvl'},(function(){ var em=h('em',{text:String(a.level)}); return em; })(),LEVELS[a.level-1].name+(a.basis==='official'?' (follows the official MI5 level)':a.basis==='raised'?' (raised automatically)':a.basis==='evidence'?' (raised by official evidence)':a.lowered?' (lowered automatically)':a.level>a.baseline?' (raised automatically)':'')),
       h('span',{'class':'chev','aria-hidden':'true'}));
     head.style.setProperty('--c',lc(a.level));
     var ul=h('ul',{'class':'checks'}); C.items.forEach(function(it){ ul.appendChild(checkbox(it)); });
@@ -940,15 +958,24 @@ function renderAreas(){
     });
     var right=h('div',{'class':'col'},h('h4',{text:'Do this'}),ul);
     var left=h('div',{'class':'col'},
-      h('h4',{text:'What is happening'}),h('p',{text:a.reason+niNote(a)}),
+      h('h4',{text:'What is happening'}),paras(a.reason+niNote(a)),
+      evidenceBlock(a),
       h('h4',{text:'What it means for you',style:'margin-top:18px'}),h('p',{text:C.means}),
       sigs.length?h('div',{'class':'area-signals'},h('h4',{text:'Latest signals',style:'margin-top:18px'}),sl):null,
-      h('p',{'class':'meta',style:'margin-top:14px',text:'Baseline level '+a.baseline+', last reviewed '+fmtDate(a.baseline_as_of)+'.'}));
+      h('p',{'class':'meta',style:'margin-top:14px',text:'Checked about every 30 minutes. Last check '+fmtTime(feed.generated_at)+'.'}));
     var panel=h('div',{'class':'area-panel'+(isOpen?' open':''),id:pid,role:'region','aria-label':a.name},h('div',null,h('div',{'class':'panel-in'},left,right)));
     var art=h('article',{'class':'area',id:'area-'+a.id,'data-level':a.level},head,h('p',{'class':'area-status',text:a.status}),panel);
     art.style.setProperty('--c',lc(a.level));
     root.appendChild(art);
   });
+}
+function paras(text){ var d=h('div'); String(text||'').split('\n').forEach(function(t){ if(t) d.appendChild(h('p',{text:t})); }); return d; }
+function evidenceBlock(a){
+  var ev=a.evidence||[]; if(!ev.length) return null;
+  var ul=h('ul',{'class':'mini'});
+  ev.forEach(function(e){ var href=safeHref(e.url);
+    ul.appendChild(h('li',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:e.title}):h('span',{text:e.title}),h('div',{'class':'meta',text:e.source+', '+fmtDate(e.date)}))); });
+  return h('div',{'class':'ev'},h('h4',{text:'Official statements behind this level',style:'margin-top:18px'}),ul);
 }
 function niNote(a){
   var L=profile&&profile.location;
@@ -976,7 +1003,7 @@ function reliability(t){ var T=TIERS[t]||TIERS[3]; return h('span',{'class':'rel
 function renderSignals(){
   var live=feed.mode!=='snapshot';
   document.getElementById('signals-sub').textContent=live?
-    'Written by the editor from public reporting, each linking to the original, plus automatic headlines from official sources. Newest first.':
+    'Automatic headlines from official sources, plus any optional signals written by the editor in their own words, each linking to the original. Newest first.':
     'A saved copy of the editor\u2019s signals.';
   var fb=document.getElementById('filters'); fb.textContent='';
   [['all','All areas']].concat(ORDER.map(function(k){ return [k,SHORT[k]]; })).forEach(function(p){
