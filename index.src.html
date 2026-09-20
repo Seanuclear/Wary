@@ -1,0 +1,1248 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{NAME}}: {{DESCRIPTION}}</title>
+<meta name="description" content="{{DESCRIPTION}} No cookies, no ads, no tracking.">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="referrer" content="no-referrer">
+<link rel="alternate" type="application/atom+xml" title="Changes to the level" href="history.xml">
+{{OG_BLOCK}}
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.postcodes.io https://environment.data.gov.uk; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<style>
+:root{
+  --paper:#E6E9EA; --ink:#000; --ink2:#3F464A; --panel:#F6F7F7; --rule:#000;
+  --hero-bg:#000; --hero-fg:#F2F4F5; --hero-dim:#9AA4AA;
+  --l1:#8FCBEA; --l2:#4FA3D6; --l3:#F5B301; --l4:#E8501C; --l5:#B00020;
+  --focus:#0A6FB0;
+  --head:"Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#000; --ink:#F2F4F5; --ink2:#AEB6BB; --panel:#15181A; --rule:#F2F4F5;
+    --hero-bg:#F2F4F5; --hero-fg:#000; --hero-dim:#4A5257; --focus:#8FCBEA;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#000; --ink:#F2F4F5; --ink2:#AEB6BB; --panel:#15181A; --rule:#F2F4F5;
+  --hero-bg:#F2F4F5; --hero-fg:#000; --hero-dim:#4A5257; --focus:#8FCBEA;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--body);text-wrap:pretty}
+a{color:inherit;text-decoration-thickness:2px;text-underline-offset:3px}
+:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+h1,h2,h3,h4{font-family:var(--head);font-stretch:62%;font-weight:850;line-height:1;margin:0;letter-spacing:.005em}
+p{margin:0 0 .8em}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* masthead */
+.mast{background:var(--hero-bg);color:var(--hero-fg);border-bottom:1px solid var(--hero-dim)}
+.mast .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:12px;font:850 clamp(32px,5.5vw,40px)/1 var(--head);font-stretch:62%;letter-spacing:.01em}
+.brand svg{width:clamp(30px,5vw,38px);height:clamp(30px,5vw,38px);flex:none}
+.tagline{margin:5px 0 0;font:400 clamp(15px,2.6vw,17px)/1.2 var(--body);color:var(--hero-fg)}
+.brandwrap{min-width:0}
+.trust{margin:6px 0 0;font-size:13px;line-height:1.25;color:var(--hero-dim)}
+.trust a{color:var(--hero-fg)}
+.status{font-size:14px;display:flex;align-items:center;gap:8px;text-align:right;line-height:1.3}
+.dot{width:10px;height:10px;background:var(--hero-dim);flex:none}
+.status.live .dot{background:var(--l2);animation:pulse 2.4s ease-in-out infinite}
+.status.stale .dot{background:var(--l3)}
+@keyframes pulse{50%{opacity:.25}}
+.notice{background:var(--l3);color:#000;border-bottom:3px solid #000}
+.notice .wrap{padding-top:11px;padding-bottom:11px;font-size:16px;line-height:1.45}
+.banner{background:var(--l1);color:#000;border-bottom:3px solid #000}
+.banner .wrap{padding-top:10px;padding-bottom:10px;font-size:15px;line-height:1.45}
+
+/* hero */
+.hero{background:var(--hero-bg);color:var(--hero-fg);padding:26px 0 40px}
+.hero .cap{font-size:17px;color:var(--hero-dim);margin:0 0 6px}
+.word{margin:0 0 22px;line-height:0}
+.word svg{display:block;width:100%;height:auto;max-width:min(calc(var(--n)*130px),calc(var(--n)*13vw + 40px))}
+.word text{font-family:var(--head);font-stretch:62%;font-weight:900;fill:var(--hero-fg)}
+.hero-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:end}
+.ladder{width:150px;height:auto;display:block}
+.hero p.lead{font-size:20px;line-height:1.45;margin-bottom:.7em;max-width:38em}
+.hero p.by{font-size:16px;color:var(--hero-dim);margin:0}
+.hero p.by a{color:var(--hero-fg)}
+@media (min-width:760px){.hero-grid{grid-template-columns:230px 1fr;gap:40px}.ladder{width:100%}.hero p.lead{font-size:24px}}
+
+/* sections */
+section{padding:44px 0 8px}
+h2{font-size:clamp(34px,6.5vw,52px);margin-bottom:8px}
+.sub{color:var(--ink2);max-width:44em;margin-bottom:22px}
+
+/* household strip and setup dialog */
+.hhbar{background:var(--panel);border-bottom:3px solid var(--rule)}
+.hhbar .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;padding-top:9px;padding-bottom:9px;font-size:15px}
+.linkbtn{font:700 15px/1 var(--body);background:none;border:0;padding:8px 2px;color:var(--ink);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;cursor:pointer}
+dialog#wiz,dialog#disp{border:4px solid var(--rule);padding:0;background:var(--paper);color:var(--ink);width:min(640px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto}
+dialog#wiz::backdrop,dialog#disp::backdrop{background:rgba(0,0,0,.78)}
+.wz-head{background:var(--hero-bg);color:var(--hero-fg);padding:18px 22px 16px}
+.wz-head h2{font-size:clamp(32px,7vw,44px);margin:0 0 10px}
+.wz-steps{display:flex;gap:6px}
+.wz-steps i{width:34px;height:8px;background:var(--hero-dim);display:block}
+.wz-steps i.on{background:var(--l3)}
+.wz-body{padding:22px}
+.wz-body p{max-width:34em}
+.wz-foot{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:0 22px 22px}
+.wz-foot .spacer{flex:1}
+.pri{font:700 18px/1 var(--body);padding:15px 22px;border:3px solid var(--rule);background:var(--ink);color:var(--paper);cursor:pointer}
+.sec{font:700 18px/1 var(--body);padding:15px 20px;border:3px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
+.fld{display:block;margin:0 0 18px}
+.fld>span{display:block;font-weight:700;margin-bottom:6px}
+.fld input[type=text],.fld select{font:400 20px/1.2 var(--body);padding:12px 14px;border:3px solid var(--rule);background:var(--panel);color:var(--ink);width:100%;max-width:320px;border-radius:0}
+.fld small{display:block;color:var(--ink2);margin-top:6px;max-width:34em}
+.err{color:var(--ink);background:var(--l3);border:3px solid var(--rule);padding:10px 12px;margin:0 0 16px;font-weight:700}
+.stp{display:flex;align-items:center;gap:0;margin:0 0 6px}
+.stp button{width:52px;height:52px;border:3px solid var(--rule);background:transparent;color:var(--ink);font:850 30px/1 var(--head);cursor:pointer}
+.stp output{min-width:64px;height:52px;display:grid;place-content:center;border:3px solid var(--rule);border-left:0;border-right:0;font:850 30px/1 var(--head);background:var(--panel)}
+.ages{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0 6px}
+.ages label{font-size:14px;font-weight:700;display:block}
+.ages select{font:400 18px/1.2 var(--body);padding:9px 10px;border:3px solid var(--rule);background:var(--panel);color:var(--ink);display:block;margin-top:4px;border-radius:0}
+.wz-body .checks{border:3px solid var(--rule);background:var(--panel);margin-bottom:14px}
+.wz-body .chk{padding:12px 14px}
+.wz-body .chk input:checked ~ span{text-decoration:none;color:var(--ink)}
+
+/* level-aware hero, right-now panel, kit, display settings */
+.hero{position:relative}
+.hero.lv4::before,.hero.lv5::before,.hero.lv5::after{content:"";position:absolute;left:0;right:0;height:14px;background:repeating-linear-gradient(-45deg,var(--lc) 0 14px,#000 14px 28px)}
+.hero.lv4{--lc:var(--l4)} .hero.lv5{--lc:var(--l5)}
+.hero.lv4::before,.hero.lv5::before{top:0}
+.hero.lv5::after{bottom:0}
+.hero.lv4,.hero.lv5{padding-top:40px!important}
+#now{padding-top:34px}
+.nowbox{border:4px solid var(--rule);background:var(--panel)}
+.nowbox.lv5::before{content:"";display:block;height:14px;background:repeating-linear-gradient(-45deg,var(--l5) 0 14px,#000 14px 28px)}
+.nowhead{padding:14px 18px;font:850 clamp(30px,6vw,44px)/1 var(--head);font-stretch:62%}
+.nowbox.lv4 .nowhead{background:var(--l4);color:#000}
+.nowbox.lv5 .nowhead{background:#000;color:#fff}
+.nowbox p.lead{margin:0;padding:14px 18px;font-size:19px;border-bottom:3px solid var(--rule);max-width:none}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.tile{padding:16px 18px;border-top:2px solid color-mix(in srgb,var(--rule) 30%,transparent);display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:start}
+.tile svg,.kt svg,.trio svg{color:var(--ink);flex:none}
+.tile svg{width:52px;height:52px}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.trio>div{padding:20px 18px;border-top:2px solid var(--rule)}
+@media (min-width:760px){.trio>div+div{border-left:3px solid var(--rule)}}
+.trio svg{width:72px;height:72px;margin-bottom:8px}
+.trio b{display:block;font:900 clamp(38px,7vw,58px)/1 var(--head);font-stretch:62%;text-transform:uppercase;margin-bottom:8px}
+.trio p{margin:0;max-width:22em}
+.dont{padding:16px 18px;border-top:3px solid var(--rule)}
+.dont ul{margin:6px 0 0;padding-left:20px}
+.offlinks{display:flex;flex-wrap:wrap;gap:10px;padding:0 18px 18px}
+.offlinks a{font-weight:700;padding:12px 16px;border:3px solid var(--rule);text-decoration:none;color:var(--ink)}
+.kit{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));border-top:3px solid var(--rule);border-left:3px solid var(--rule);background:var(--panel)}
+.kt{padding:18px 12px 16px;border-right:3px solid var(--rule);border-bottom:3px solid var(--rule);text-align:center}
+.kt svg{width:58px;height:58px}
+.kt b{display:block;font:850 24px/1.05 var(--head);font-stretch:62%;margin-top:8px}
+.kt strong{display:block;font-size:16px;margin-top:2px}
+.kt span{display:block;font-size:14px;color:var(--ink2);margin-top:4px;line-height:1.35}
+.hhbar .acts{display:flex;gap:18px}
+.seg{border:0;padding:0;margin:0 0 22px}
+.seg legend{font-weight:700;margin-bottom:8px;padding:0}
+.seg .opts{display:flex;flex-wrap:wrap}
+.seg label{position:relative;display:block;margin-right:-3px;margin-bottom:-3px}
+.seg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.seg label span{display:block;padding:12px 16px;border:3px solid var(--rule);background:transparent;cursor:pointer}
+.seg input:checked+span{background:var(--ink);color:var(--paper)}
+.seg input:focus-visible+span{outline:4px solid var(--focus);outline-offset:2px;position:relative;z-index:1}
+/* display settings (chosen by the visitor) */
+:root[data-text="large"] body{zoom:1.15}
+:root[data-text="xl"] body{zoom:1.3}
+:root[data-contrast="high"]{--ink2:var(--ink);--hero-dim:var(--hero-fg);--panel:var(--paper)}
+:root[data-contrast="high"] a{text-decoration-thickness:3px}
+:root[data-contrast="high"] .box,:root[data-contrast="high"] .start,:root[data-contrast="high"] .kit,:root[data-contrast="high"] .nowbox,:root[data-contrast="high"] .tl-wrap{border-width:5px}
+:root[data-contrast="high"] .chk input{border-width:5px}
+:root[data-read="easy"]{--body:Verdana,Tahoma,"Trebuchet MS",sans-serif}
+:root[data-read="easy"] body{line-height:1.85;letter-spacing:.03em;word-spacing:.1em}
+:root[data-motion="reduce"] *{animation:none!important;transition:none!important}
+:root[data-view="calm"]{--hero-bg:var(--panel);--hero-fg:var(--ink);--hero-dim:var(--ink2)}
+:root[data-view="calm"] .hero{border-bottom:4px solid var(--rule)}
+:root[data-view="calm"] .hero::before,:root[data-view="calm"] .hero::after,:root[data-view="calm"] .nowbox::before{display:none}
+:root[data-view="calm"] .hero{padding-top:26px!important}
+:root[data-view="calm"] .word svg{max-width:min(calc(var(--n)*64px),80%)}
+:root[data-view="calm"] .nowbox.lv4 .nowhead,:root[data-view="calm"] .nowbox.lv5 .nowhead{background:var(--paper);color:var(--ink);border-bottom:3px solid var(--rule)}
+:root[data-view="calm"] .lv[data-n="5"] .n{background:var(--l5)}
+:root[data-view="calm"] .status.live .dot{animation:none}
+
+/* live checks */
+#checks{padding-top:34px}
+.cs{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));border-top:4px solid var(--rule);border-left:4px solid var(--rule);background:var(--panel)}
+.cc{padding:16px 16px 14px;border-right:4px solid var(--rule);border-bottom:4px solid var(--rule);display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:start}
+.cc>svg{width:46px;height:46px}
+.cc>div{min-width:0}
+.cc b{display:block;margin-bottom:6px}
+.cc strong{margin-bottom:8px}
+.cc b{font:850 22px/1.05 var(--head);font-stretch:62%}
+.cc strong{display:block;font-size:20px;line-height:1.2}
+.cc p{margin:0;font-size:15px;color:var(--ink2);line-height:1.4}
+.cc .meta{font-size:14px}
+.cc a{font-weight:700;font-size:14px}
+.cc[data-state="notice"] strong{background:var(--l3);color:#000;display:inline-block;padding:1px 7px}
+.cc[data-state="alert"] strong{background:var(--l5);color:#fff;display:inline-block;padding:1px 7px}
+.cc[data-state="unknown"] strong{border:2px dashed var(--rule);display:inline-block;padding:0 6px}
+.cc[data-state="alert"]{outline:4px solid var(--l5);outline-offset:-4px}
+@media (max-width:520px){.cs{grid-template-columns:1fr}}
+
+/* start here */
+.start{border:3px solid var(--rule);background:var(--panel)}
+.start-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 20px;padding:16px 18px;border-bottom:3px solid var(--rule)}
+.meter{flex:1 1 220px;max-width:340px}
+.meter b{font-weight:700}
+.bar{height:12px;border:2px solid var(--rule);margin-top:6px;background:transparent}
+.bar i{display:block;height:100%;background:var(--l1);width:0;transition:width .25s ease}
+.checks{list-style:none;margin:0;padding:0}
+.checks li{border-top:2px solid color-mix(in srgb,var(--rule) 22%,transparent)}
+.checks li:first-child{border-top:0}
+.chk{display:grid;grid-template-columns:30px 1fr;gap:14px;padding:13px 18px;cursor:pointer;align-items:start}
+.chk span{text-wrap:wrap}
+.chk input{appearance:none;-webkit-appearance:none;width:28px;height:28px;margin:1px 0 0;border:3px solid var(--rule);background:transparent;display:grid;place-content:center;cursor:pointer}
+.chk input::after{content:"";width:14px;height:7px;border-left:4px solid var(--paper);border-bottom:4px solid var(--paper);transform:rotate(-45deg) translate(1px,-1px) scale(0);transition:transform .12s ease}
+.chk input:checked{background:var(--ink)}
+.chk input:checked::after{transform:rotate(-45deg) translate(1px,-1px) scale(1)}
+.chk input:checked ~ span{color:var(--ink2);text-decoration:line-through;text-decoration-thickness:2px}
+.tag{display:inline-block;background:var(--l1);color:#000;font:700 13px/1 var(--body);padding:4px 7px;margin-right:8px;vertical-align:1px}
+.child{display:inline-block;border:2px solid var(--rule);font:700 13px/1 var(--body);padding:2px 6px;margin-right:8px;vertical-align:1px}
+
+/* areas */
+.areas{border-top:4px solid var(--rule)}
+.area{border-bottom:4px solid var(--rule)}
+.area-head{all:unset;box-sizing:border-box;display:grid;grid-template-columns:52px 1fr auto 20px;gap:4px 16px;align-items:center;width:100%;padding:18px 0 6px;cursor:pointer}
+.area-head:focus-visible{outline:4px solid var(--focus);outline-offset:-4px}
+.ico{width:52px;height:52px;grid-row:1 / span 2}
+.area-name{font:850 clamp(26px,5vw,36px)/1 var(--head);font-stretch:62%}
+.pips{display:flex;gap:4px;grid-column:3;justify-self:end}
+.pips i{width:16px;height:16px;border:2px solid var(--rule);display:block}
+.pips i.on{background:var(--c);border-color:var(--rule)}
+.lvl{grid-column:2;grid-row:2;font-weight:700;font-size:16px}
+.lvl em{font-style:normal;display:inline-block;min-width:26px;text-align:center;padding:1px 6px;margin-right:8px;color:#000;background:var(--c);border:2px solid var(--rule)}
+.area[data-level="5"] .lvl em{color:#fff}
+.chev{grid-column:4;grid-row:1 / span 2;width:14px;height:14px;border-right:4px solid var(--ink);border-bottom:4px solid var(--ink);transform:rotate(45deg);transition:transform .2s ease;justify-self:end;margin-right:2px}
+.area-head[aria-expanded="true"] .chev{transform:rotate(-135deg)}
+.area-status{margin:0;padding:0 0 18px 68px;color:var(--ink2);max-width:46em}
+.area-panel{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease;visibility:hidden}
+.area-panel.open{grid-template-rows:1fr;visibility:visible}
+.area-panel > div{overflow:hidden}
+.panel-in{display:grid;gap:26px 40px;padding:6px 0 30px}
+@media (min-width:860px){.panel-in{grid-template-columns:1fr 1fr}.area-status{max-width:none}}
+.panel-in h4{font-size:24px;margin:0 0 8px}
+.panel-in .col p{max-width:36em}
+.mini{margin:0;padding:0;list-style:none}
+.mini li{padding:10px 0;border-top:2px solid color-mix(in srgb,var(--rule) 22%,transparent)}
+.mini a{font-weight:700}
+.meta{font-size:14px;color:var(--ink2)}
+.panel-in .checks{border:3px solid var(--rule);background:var(--panel)}
+.panel-in .chk{padding:11px 14px}
+
+@media (max-width:640px){
+  .area-head{grid-template-columns:44px 1fr 20px;padding-top:16px}
+  .ico{width:44px;height:44px;grid-row:1 / span 3}
+  .pips{grid-column:2;grid-row:3;justify-self:start;margin-top:8px}
+  .chev{grid-column:3;grid-row:1 / span 3}
+  .area-status{padding-left:0;padding-top:10px}
+}
+/* levels legend */
+.legend{border-top:4px solid var(--rule)}
+.lv{display:grid;grid-template-columns:76px 1fr;gap:18px;padding:16px 0;border-bottom:2px solid var(--rule);align-items:start}
+.lv .n{height:76px;display:grid;place-content:center;font:900 54px/1 var(--head);font-stretch:62%;color:#000;background:var(--c);border:3px solid var(--rule)}
+.lv[data-n="5"] .n{color:#fff;background:repeating-linear-gradient(-45deg,var(--l5) 0 12px,#000 12px 24px)}
+.lv h3{font-size:30px;margin:2px 0 4px}
+.lv p{margin:0;max-width:44em}
+.lv.now{outline:5px solid var(--ink);outline-offset:-2px;padding-left:12px;padding-right:12px;margin:0 -12px;background:var(--panel)}
+.lv .here{display:inline-block;background:var(--ink);color:var(--paper);font:700 14px/1 var(--body);padding:5px 8px;margin-left:10px;vertical-align:4px}
+
+/* signals */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
+.filters button{font:700 15px/1 var(--body);padding:11px 14px;border:3px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tl-wrap{overflow-x:auto;border:3px solid var(--rule);background:var(--panel);margin-bottom:28px;-webkit-overflow-scrolling:touch}
+.tl{display:block;min-width:720px;width:100%;height:auto}
+.tl text{fill:var(--ink);font:400 12px var(--body)}
+.tl .grid{stroke:var(--ink2);stroke-width:1;opacity:.35}
+.tl .mk{fill:var(--ink);stroke:var(--ink);stroke-width:2}
+.tl .mk.t3{fill:var(--panel)}
+.sig{display:grid;grid-template-columns:96px 1fr;gap:6px 20px;padding:18px 0;border-top:2px solid var(--rule)}
+.sig time{font:850 22px/1.05 var(--head);font-stretch:62%}
+.sig time small{display:block;font:400 14px/1.3 var(--body);color:var(--ink2);margin-top:4px}
+.sig time small+small{margin-top:0}
+.sig h3{font-size:25px;line-height:1.1;margin-bottom:8px}
+.sig h3 a{text-decoration:none}
+.sig h3 a:hover{text-decoration:underline}
+.sig p{margin:0 0 8px;max-width:46em}
+.rel{display:inline-flex;align-items:center;gap:8px;font-size:14px}
+.rel svg{width:14px;height:14px;flex:none}
+.tags{font-size:14px;color:var(--ink2)}
+.sep{font:850 26px/1 var(--head);font-stretch:62%;margin:34px 0 4px;padding-top:18px;border-top:4px solid var(--rule)}
+@media (max-width:560px){.sig{grid-template-columns:1fr}.sig time{display:flex;gap:10px;align-items:baseline}.sig time small{margin:0}}
+
+/* local + method */
+.two{display:grid;gap:26px 44px}
+@media (min-width:860px){.two{grid-template-columns:1fr 1fr}}
+.box{border:3px solid var(--rule);padding:18px;background:var(--panel)}
+.box h3{font-size:28px;margin-bottom:10px}
+.box ul{margin:0;padding-left:20px}
+.box ul.mini{padding-left:0}
+.box li{margin-bottom:8px}
+.src{list-style:none;padding:0!important;margin:0}
+.src li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:2px solid color-mix(in srgb,var(--rule) 22%,transparent);font-size:15px}
+.src li:first-child{border-top:0}
+.src .ok{width:12px;height:12px;flex:none;margin-top:6px;background:var(--l2)}
+.src .bad{background:var(--l4)}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0;border:3px solid var(--rule);background:var(--panel)}
+.nums div{padding:14px 16px;border-top:2px solid color-mix(in srgb,var(--rule) 22%,transparent)}
+.nums b{display:block;font:850 34px/1 var(--head);font-stretch:62%}
+footer{margin-top:56px;background:var(--hero-bg);color:var(--hero-fg);padding:30px 0 40px;font-size:15px}
+footer p{max-width:50em;color:var(--hero-fg)}
+.btn{font:700 16px/1 var(--body);padding:13px 16px;border:3px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer;margin-top:14px}
+.empty{padding:22px;border:3px dashed var(--rule);color:var(--ink2)}
+
+@media (max-width:520px){.trust{font-size:12px}.status{font-size:13px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{
+  body{zoom:1!important}
+  #now,.mast .status,.banner,.notice,.hhbar,.hero,#levels,#signals,#local,#method,.start,.btn,.filters,.chev,.area-signals,footer p.no-print{display:none!important}
+  body{background:#fff;color:#000}
+  .area-panel{grid-template-rows:1fr!important;visibility:visible!important}
+  .area{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hz" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="12" height="12" fill="#B00020"/><rect width="6" height="12" fill="#000"/></pattern>
+    <symbol id="i-energy" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M24 4L12 44M24 4L36 44M6 14H42M10 26H38M17.4 26L36 44M30.6 26L12 44M6 14v5M42 14v5M10 26v5M38 26v5"/></g></symbol>
+    <symbol id="i-cyber" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><rect x="9" y="22" width="30" height="21"/><path d="M15 22V15a9 9 0 0 1 18 0v7M24 30v6"/></g><circle cx="24" cy="30" r="3" fill="currentColor"/></symbol>
+    <symbol id="i-comms" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M3 15q5-6 10 0t10 0t10 0t10 0M3 26q5-6 10 0t10 0t10 0t10 0M3 40H19M29 40H45M19 40l3-5 3 10 4-5"/></g></symbol>
+    <symbol id="i-security" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter"><path d="M3 24C11 11 37 11 45 24 37 37 11 37 3 24Z"/><circle cx="24" cy="24" r="6"/></g><circle cx="24" cy="24" r="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-military" viewBox="0 0 48 48"><path fill="currentColor" d="M20.5 17.9L13.5 5.8A21 21 0 0 1 34.5 5.8L27.5 17.9A7 7 0 0 0 20.5 17.9ZM31.0 24.0L45.0 24.0A21 21 0 0 1 34.5 42.2L27.5 30.1A7 7 0 0 0 31.0 24.0ZM20.5 30.1L13.5 42.2A21 21 0 0 1 3.0 24.0L17.0 24.0A7 7 0 0 0 20.5 30.1Z"/><circle cx="24" cy="24" r="4.2" fill="currentColor"/></symbol>
+    <symbol id="i-supply" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M10 12v24c0 4 28 4 28 0V12M10 12c0 4 28 4 28 0 0-4-28-4-28 0M10 22c0 4 28 4 28 0"/></g></symbol>
+    <symbol id="i-in" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M5 22L24 6l19 16M10 19v23h28V19M20 42V30h8v12"/></g></symbol>
+    <symbol id="i-stay" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M5 22L24 6l19 16M10 19v23h28V19"/><circle cx="24" cy="31" r="7"/><path d="M24 27v4l3 2"/></g></symbol>
+    <symbol id="i-tune" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M6 18h36v24H6zM32 18L40 6"/><circle cx="18" cy="30" r="6"/><path d="M30 26h8M30 32h8"/></g></symbol>
+    <symbol id="i-water" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M24 5C24 5 11 20 11 30a13 13 0 0 0 26 0C37 20 24 5 24 5z"/><path d="M18 31a6 6 0 0 0 6 6"/></g></symbol>
+    <symbol id="i-torch" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M5 19h20v10H5zM25 16l11-7v30l-11-7M41 15l5-3M41 24h5M41 33l5 3"/></g></symbol>
+    <symbol id="i-battery" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M7 14h32v22H7zM39 21v8M23 19l-5 9h7l-3 8"/></g></symbol>
+    <symbol id="i-cash" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M4 14h40v22H4zM9 19h2M37 31h2"/><circle cx="24" cy="25" r="5"/></g></symbol>
+    <symbol id="i-fuel" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M10 42V8h18v34M6 42h26M14 13h10v9H14zM28 17h5l5 5v15a3 3 0 0 1-6 0v-8"/></g></symbol>
+    <symbol id="i-child" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><circle cx="24" cy="13" r="6"/><path d="M11 43v-7a13 13 0 0 1 26 0v7"/></g></symbol>
+    <symbol id="i-pill" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><rect x="5" y="17" width="38" height="14" rx="7"/><path d="M24 17v14"/></g></symbol>
+    <symbol id="i-paw" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3"><circle cx="15" cy="18" r="3.5"/><circle cx="33" cy="18" r="3.5"/><circle cx="8" cy="28" r="3.5"/><circle cx="40" cy="28" r="3.5"/><path d="M24 26c7 0 11 7 9 11s-5 3-9 3-7 1-9-3 2-11 9-11z"/></g></symbol>
+    <symbol id="i-hygiene" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M15 22h18v20H15zM19 22v-7h10v7M29 15h6l3 3"/></g></symbol>
+    <symbol id="i-news" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M8 8h32v32H8zM14 16h20M14 24h20M14 32h12"/></g></symbol>
+    <symbol id="i-aid" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M6 14h36v26H6zM17 14V9h14v5M24 21v12M18 27h12"/></g></symbol>
+    <symbol id="s-clear" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square"><circle cx="24" cy="24" r="19"/><path d="M14 25l7 7 13-15"/></g></symbol>
+    <symbol id="s-notice" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="miter"><path d="M24 5L44 41H4z"/><path d="M24 18v12M24 34v3" stroke-linecap="square"/></g></symbol>
+    <symbol id="s-alert" viewBox="0 0 48 48"><g stroke="currentColor" stroke-width="4"><path d="M15 4h18l11 11v18L33 44H15L4 33V15z" fill="currentColor"/></g><g stroke="var(--paper)" stroke-width="4.5" stroke-linecap="square"><path d="M24 14v13M24 33v3"/></g></symbol>
+    <symbol id="s-unknown" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square" stroke-dasharray="6 5"><circle cx="24" cy="24" r="19"/></g><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square"><path d="M18 19a6 6 0 1 1 9 5c-2 1.5-3 2.500-3 5M24 35v2"/></g></symbol>
+    <symbol id="sq-full" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="sq-half" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"/><path d="M1 13V1h12z" fill="currentColor"/></symbol>
+    <symbol id="sq-none" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  </defs>
+</svg>
+
+<header class="mast">
+  <div class="wrap">
+    <div class="brandwrap">
+      <div class="brand">
+        <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="2" y="18" width="4" height="10" fill="#8FCBEA"/><rect x="8" y="13" width="4" height="15" fill="#4FA3D6"/><rect x="14" y="8" width="4" height="20" fill="#F5B301"/><rect x="21" y="3.5" width="4" height="24.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span>{{NAME}}</span>
+      </div>
+      <p class="tagline">{{TAGLINE}}</p>
+      <p class="trust">No cookies. No ads. No tracking. <a href="#about">Details</a></p>
+    </div>
+    <div class="status" id="status" role="status"><span class="dot"></span><span id="status-text">Loading</span></div>
+  </div>
+</header>
+<div class="banner" id="banner" hidden><div class="wrap"></div></div>
+<div class="notice" id="notice" hidden role="status"><div class="wrap"></div></div>
+<noscript><div class="banner"><div class="wrap">This page needs JavaScript to show the levels. For official advice, search GOV.UK for “Prepare for emergencies”.</div></div></noscript>
+<div class="hhbar"><div class="wrap"><span id="hh-text">Loading</span><span class="acts"><button type="button" id="hh" class="linkbtn">Set up</button><button type="button" id="dispbtn" class="linkbtn" aria-haspopup="dialog">Display</button></span></div></div>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-word" style="padding-top:26px">
+    <div class="wrap" id="hero"></div>
+  </section>
+
+  <div class="wrap">
+    <section id="checks" aria-labelledby="h-checks" hidden>
+      <h2 id="h-checks">Live checks</h2>
+      <p class="sub" id="checks-sub">Official facts, checked when this page was last built. A check only says &ldquo;none&rdquo; when it has positively read that. If it cannot, it says so.</p>
+      <div class="cs" id="checks-grid" role="list"></div>
+    </section>
+
+    <section id="now" aria-labelledby="h-now" hidden><div id="now-box"></div></section>
+
+    <section id="start" aria-labelledby="h-start">
+      <h2 id="h-start">Start with these</h2>
+      <p class="sub">These follow the government’s household emergency advice and local resilience forum kit lists, adjusted to your household. You do not need to buy everything at once. Start with what you already have. Ticks are saved on this device only.</p>
+      <div class="start" id="start-box"></div>
+    </section>
+
+    <section id="kit" aria-labelledby="h-kit">
+      <h2 id="h-kit">Your kit at a glance</h2>
+      <p class="sub">Three days for your household. Quantities follow your answers in the setup. Official sources give between 2.5 and 4 litres of water per person per day, and we use 3. It prints on the fridge sheet too.</p>
+      <div class="kit" id="kit-grid"></div>
+    </section>
+
+    <section id="areas-sec" aria-labelledby="h-areas">
+      <h2 id="h-areas">The six areas we watch</h2>
+      <p class="sub">Highest level first. Tap an area for what is happening, what it means for you, and a short checklist.</p>
+      <div class="areas" id="areas"></div>
+      <button class="btn" id="print" type="button">Print the checklists for the fridge door</button>
+    </section>
+
+    <section id="levels" aria-labelledby="h-levels">
+      <h2 id="h-levels">What each level means</h2>
+      <p class="sub">This one to five scale is this tool's own. It is not an official warning system.</p>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section id="signals" aria-labelledby="h-signals">
+      <h2 id="h-signals">Signals behind the ratings</h2>
+      <p class="sub" id="signals-sub"></p>
+      <div class="filters" id="filters" role="group" aria-label="Filter signals by area"></div>
+      <div class="tl-wrap" id="tl-wrap" tabindex="0" aria-label="Timeline of signals, scrolls sideways"></div>
+      <div id="sigs"></div>
+    </section>
+
+    <section id="local" aria-labelledby="h-local">
+      <h2 id="h-local">Near you</h2>
+      <div class="two" id="local-box"></div>
+    </section>
+
+    <section id="method" aria-labelledby="h-method">
+      <h2 id="h-method">How the ratings work</h2>
+      <div class="two">
+        <div class="box">
+          <h3>The rules</h3>
+          <ul>
+            <li>Each area has a <strong>standing level</strong> that the editor can set from official assessments, and reviews from time to time. The page shows when. If an area goes unreviewed for 90 days, any level above Aware settles down to Aware by itself.</li>
+            <li><strong>Official evidence moves areas by itself.</strong> When two or more different official statements in the last 30 days (from GOV.UK departments and the NCSC) name hostile or state-linked activity affecting an area, that area rises to Elevated. It falls back on its own as the statements age out. They are listed under the area, so you can read them.</li>
+            <li>The <strong>terrorism</strong> area follows the official MI5 threat level automatically, up and down.</li>
+            <li>A few clear <strong>official</strong> triggers can raise other areas to High for up to 72 hours, labelled &ldquo;raised automatically&rdquo;: the NCSC declaring a nationally significant cyber incident, the grid operator warning of demand control or load shedding, or an official statement about damage to undersea cables.</li>
+            <li>Nothing from the press moves a level. Other automatic headlines are shown for information only.</li>
+            <li><strong>Level 5</strong> is set automatically only for a very clear official signal that has held for over 6 hours: the official terrorism threat level at CRITICAL, or the government naming an attack on the UK while convening COBR. Until it has held, the area shows High. Real emergencies will reach you first through Emergency Alerts and the government, not through this page.</li>
+            <li>This does not replace Emergency Alerts, the police, your council or the BBC.</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>How much to trust a source</h3>
+          <ul class="src" style="list-style:none">
+            <li><svg width="14" height="14" style="flex:none;margin-top:5px"><use href="#sq-full"/></svg><span><strong>Official.</strong> Government, MI5, the NCSC, regulators and the grid operator.</span></li>
+            <li><svg width="14" height="14" style="flex:none;margin-top:5px"><use href="#sq-half"/></svg><span><strong>Established press.</strong> Wire services and major broadcasters that name their sources and publish corrections.</span></li>
+            <li><svg width="14" height="14" style="flex:none;margin-top:5px"><use href="#sq-none"/></svg><span><strong>Specialist or analyst.</strong> Useful and often early, but shown with more caution.</span></li>
+          </ul>
+        </div>
+      </div>
+      </section>
+
+    <section id="about" aria-labelledby="h-about">
+      <h2 id="h-about">About, privacy and sources</h2>
+      <div class="two">
+        <div class="box">
+          <h3>Privacy, in plain English</h3>
+          <ul>
+            <li><strong>No cookies.</strong> This site sets none.</li>
+            <li><strong>No ads, no analytics, no tracking.</strong> It loads no third-party scripts, fonts or images, and your browser is told to refuse them.</li>
+            <li>Your household answers, ticks and display settings (text size, contrast and so on) are saved in your browser’s own storage, on this device only, so the page can remember them. They are never sent to us. “Change”, then “Delete my details”, removes them.</li>
+            <li>If you add a postcode area, your browser asks two public services about it directly: postcodes.io, to find your area, and the Environment Agency, for flood warnings. They can see your internet address, as any website can. This site never sees it. Leave the postcode blank to avoid this.</li>
+            <li>The page saves a copy of itself in your browser so it opens without internet.</li>
+            <li>The site is hosted on {{HOST}}, which keeps standard server logs. We cannot see them.</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>Who runs this</h3>
+          <p>Run by {{OWNER}}. It is non-commercial, carries no advertising, and is not an official service. No government body endorses it.</p>
+          <p>Every summary in “Signals” is written or checked by the editor from public reporting and links to the original. The automatic headlines come only from official, open-licensed feeds.</p>
+          <p>Wary was built with the help of an AI assistant. The editor chooses and checks the levels, and is responsible for what the site says.</p>
+          {{ADDRESS_LINE}}
+          {{CONTACT_LINE}}
+          {{DONATE_BLOCK}}
+        </div>
+      </div>
+      <div class="box" style="margin-top:26px">
+        <h3>Sources and licences</h3>
+        <ul>
+          <li><strong>Live checks.</strong> Emergency Alerts status from GOV.UK (Open Government Licence v3.0). Electricity grid notices from Elexon BMRS: contains BMRS data © Elexon Limited copyright and database right. If a check cannot be read, the strip says so instead of guessing.</li>
+          <li><strong>Space weather.</strong> Storm levels from the NOAA Space Weather Prediction Center (US government data). UK forecasts come from the <a href="https://weather.metoffice.gov.uk/specialist-forecasts/space-weather" target="_blank" rel="noopener noreferrer">Met Office</a>, which forecasts space weather around the clock, and its content is available under the Open Government Licence. It is shown so a GPS or grid problem is not mistaken for an attack, and it never changes a level.</li>
+          <li><strong>UK internet (if shown).</strong> Disruptions seen by Cloudflare Radar, whose data is licensed CC BY-NC 4.0. It is shown for information only and never changes a level.</li>
+          <li><strong>Threat level.</strong> The UK national terrorism threat level is read from MI5’s website (Crown copyright).</li>
+          <li><strong>Official headlines.</strong> From GOV.UK departments and the NCSC. Contains public sector information licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noopener noreferrer">Open Government Licence v3.0</a>.</li>
+          <li><strong>Flood warnings.</strong> This uses Environment Agency flood and river level data from the real-time data API (Beta).</li>
+          <li><strong>Weather warnings.</strong> Met Office, licensed under the Open Government Licence v3.0.</li>
+          <li><strong>Postcode areas.</strong> Via postcodes.io. Contains Ordnance Survey data © Crown copyright and database right 2025. Contains Royal Mail data © Royal Mail copyright and database right 2025. Contains National Statistics data © Crown copyright and database right 2025. Contains NRS data © Crown copyright and database right 2025.</li>
+          <li><strong>News reports.</strong> We link to reports from the BBC, Reuters, the Guardian and others. Their text is not copied, and they own their copyright.</li>
+        </ul>
+      </div>
+      <div class="box" style="margin-top:26px" id="changes-box"></div>
+      <div class="box" style="margin-top:26px" id="src-box"></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <h2 style="font-size:34px;margin-bottom:14px">Numbers worth saving</h2>
+    <div class="nums" style="color:var(--ink);--rule:var(--hero-dim)">
+      <div><b>999</b>Emergency: fire, police, ambulance</div>
+      <div><b>101</b>Police, not an emergency</div>
+      <div><b>105</b>Power cut</div>
+      <div><b>111</b>NHS advice</div>
+      <div><b>0800 111 999</b>Gas emergency</div>
+      <div><b>0800 789 321</b>Anti-Terrorist Hotline</div>
+    </div>
+    <p style="margin-top:22px" class="no-print">Independent and non-commercial. Not official advice: it can be wrong or late. In an emergency, follow the emergency services, your local council and Emergency Alerts. No cookies, no ads, no tracking. <a href="#about" style="color:var(--hero-fg)">About, privacy and sources</a>.</p>
+  </div>
+</footer>
+
+<dialog id="disp" aria-labelledby="disp-title"><form method="dialog" id="disp-form" novalidate onsubmit="return false"></form></dialog>
+<dialog id="wiz" aria-labelledby="wiz-title"><form method="dialog" id="wiz-form" novalidate onsubmit="return false"></form></dialog>
+<script id="snapshot" type="application/json">__SNAPSHOT__</script>
+<script>
+(function(){
+'use strict';
+var SNAP = JSON.parse(document.getElementById('snapshot').textContent);
+
+/* ---------- household profile ---------- */
+var DEFAULT_PROFILE={adults:2,children:[],pets:false,car:true,meds:false,powered:false,mobility:false,outcode:'',skipped:true,location:null};
+var NUMW=['no','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'];
+function kidRef(list){
+  if(!list.length) return '';
+  if(list.length>1) return 'your children';
+  var a=list[0]; return a<1?'your baby':'your '+a+' year old';
+}
+function derive(p){
+  var kids=(p.children||[]).slice(), D={p:p,kids:kids.length};
+  D.people=p.adults+kids.length;
+  D.older=kids.filter(function(a){return a>=5;});
+  D.readers=kids.filter(function(a){return a>=6;});
+  D.teens=kids.filter(function(a){return a>=11;}).length;
+  D.small=kids.filter(function(a){return a<5;}).length;
+  D.baby=kids.filter(function(a){return a<3;}).length;
+  D.ref=kidRef(kids); D.olderRef=kidRef(D.older); D.readersRef=kidRef(D.readers);
+  D.tag=kids.length>1?'With your children':'With your child';
+  return D;
+}
+
+/* ---------- editorial content: edit the advice here ---------- */
+function buildGuidance(D){
+  var p=D.p, K=D.kids>0, N=D.people, sch=D.older.length>0;
+  function it(list,id,t,o){ o=o||{}; if(o.when===false) return; list.push({id:id,t:t,first:o.first?1:0,child:o.child?1:0}); }
+  var A={};
+
+  A.energy={icon:'i-energy',
+   means:'A power cut of a few hours is the most likely effect, and it usually comes from weather or faults, not attack. Winter margins look comfortable. A few days without power would still affect heating, cooking, phone charging and, in some homes, water pressure.'+(p.powered?' For a household that relies on powered medical equipment even a short cut matters, so plan for it now.':''),items:[]};
+  it(A.energy.items,'e1','Find the mains switches and stopcock for electricity, gas and water'+(sch?', and show '+D.olderRef+'. Present it as a normal house safety job.':'.'),{child:sch});
+  it(A.energy.items,'e2','Keep '+Math.max(2,p.adults+D.teens)+' power banks charged, enough for every phone in the house to get a full charge. Recharge them whenever you charge your phone.',{first:1});
+  it(A.energy.items,'e6',(p.powered?'Register with your electricity network\u2019s Priority Services Register (it is free) and ask your clinician or equipment supplier what to do in a power cut. Have a charged backup where they advise.':'Register with your electricity network\u2019s Priority Services Register (it is free), and agree who will check on anyone in the home who is over 75 or has limited mobility.'),{when:p.powered||p.mobility,first:p.powered});
+  it(A.energy.items,'e3','Keep a torch each ('+(N===1?'just the one for you':N+' in your household')+'), and a battery or wind-up radio with spare batteries. Use torches, not candles.');
+  it(A.energy.items,'e4','Save 105 (power cut) and 0800 111 999 (gas emergency) in your phone, and write them down.');
+  it(A.energy.items,'e5','Plan how to stay warm without power: blankets, sleeping bags and warm layers for everyone. Never use a barbecue or camping stove indoors.');
+
+  A.cyber={icon:'i-cyber',means:'Attacks on banks, the NHS, councils or water companies could mean failed payments, delayed appointments or a wave of scams. Most are fixed within hours or days. The real household risk is being caught without cash, contacts or a way to prove who you are.',items:[]};
+  it(A.cyber.items,'c1','Turn on two-step verification for your email, bank and phone accounts.');
+  it(A.cyber.items,'c2','Use a password manager, and give your main email account its own strong password.');
+  it(A.cyber.items,'c3','Keep paper or offline copies of key details: ID, insurance, GP, your bank\u2019s phone number'+(K?' and your '+(D.kids>1?'children\u2019s':'child\u2019s')+' school or nursery details.':'.'));
+  it(A.cyber.items,'c4','Keep some cash in small notes, enough for a few days of essentials. Cash machines and card terminals can fail.',{first:1});
+  it(A.cyber.items,'c5','Treat urgent texts about outages or \u201Cofficial warnings\u201D as suspect. Check GOV.UK. Forward scam texts to 7726 and scam emails to report@phishing.gov.uk.');
+  it(A.cyber.items,'c6','Agree with your teenager that you both check official sources before sharing any crisis rumour online.',{when:D.teens>0,child:1});
+
+  A.comms={icon:'i-comms',means:'Cable damage would most likely slow the internet and some services, not switch them off. GPS interference mostly affects aircraft and ships. Your best protection is a plan for reaching each other without the internet.',items:[]};
+  it(A.comms.items,'m1','Agree a plan for when phones stop working: a meeting place, a code word and one relative or friend outside the area to call.'+(K?' Practise it once with '+D.ref+'.':''),{first:1,child:K});
+  it(A.comms.items,'m7','Name a backup adult who can collect '+D.ref+' if you cannot get there, and ask the school or nursery to add them to its contact list.',{when:K&&p.adults===1,first:1,child:1});
+  it(A.comms.items,'m2','Help '+D.readersRef+' learn your number, and one other trusted adult\u2019s number, by heart.',{when:D.readers.length>0,child:1});
+  it(A.comms.items,'m3','Download offline maps'+(sch?', and check you know the walking route to school without GPS.':'.'));
+  it(A.comms.items,'m4','Check Emergency Alerts are switched on in your phone\u2019s settings.',{first:1});
+  it(A.comms.items,'m5','Put your key phone numbers on paper in your kit.');
+
+  A.security={icon:'i-security',means:'The chance that you personally are affected is very small, but the official level says the risk is real and has risen. Awareness and a plan are proportionate. Daily life carries on.',items:[]};
+  it(A.security.items,'s1','Learn Run, Hide, Tell'+(sch?', and explain it to '+D.olderRef+' in a calm, simple way.':'.'),{child:sch});
+  it(A.security.items,'s2','Ask your '+(D.kids>1?'children\u2019s':'child\u2019s')+' school or nursery how it handles lockdowns and emergencies, and how it would contact you.',{when:K,child:1});
+  it(A.security.items,'s3','Save 999, 101 (police, not an emergency) and the Anti-Terrorist Hotline (0800 789 321).');
+  it(A.security.items,'s4','When you are out, notice the exits. Trust your instincts, and report anything that feels wrong.');
+
+  A.military={icon:'i-military',means:'There is no public warning of an attack on UK homes. The useful response is to know how official information will reach you, and to keep the basics in the house.',items:[]};
+  it(A.military.items,'w1','Learn the official advice for a serious incident: go in, stay in, tune in.');
+  it(A.military.items,'w2','Know where to listen: BBC Radio 4 and BBC local radio carry emergency information.');
+  it(A.military.items,'w3','Read the government\u2019s \u201CPrepare\u201D guidance once. You do not need to keep re-reading it.');
+
+  A.supply={icon:'i-supply',means:'Shortages, if they come, tend to be patchy and short. Buying a little extra over time works better than one big panic shop.',items:[]};
+  it(A.supply.items,'p1','Water: about 3 litres per person per day for 3 days. For '+(N===1?'you':'your household of '+N)+' that is about '+(N*9)+' litres.',{first:1});
+  it(A.supply.items,'p2','Three days of food for '+(N===1?'yourself':N+' people')+' that you would happily eat and that needs little or no cooking, plus a manual can opener.',{first:1});
+  it(A.supply.items,'p3',p.meds?'Keep a few days\u2019 spare of everyone\u2019s regular medicines, and a basic first aid kit. Ask your pharmacist how to do this without stockpiling beyond your prescription.':'Keep a basic first aid kit, and a few days of any medicines you take.',{first:p.meds});
+  it(A.supply.items,'p9','Wet wipes, hand sanitiser and bin bags, for basic hygiene if the water is off.');
+  it(A.supply.items,'p7','Babies and toddlers: 3 days of nappies, wipes, formula or milk and any baby food, plus a comfort item.',{when:D.baby>0,first:1,child:1});
+  it(A.supply.items,'p4','Buy a little extra each shop. Panic buying causes the shortages people fear.');
+  it(A.supply.items,'p5','Keep the car above half a tank over winter.',{when:p.car});
+  it(A.supply.items,'p8','Pets: 3 days of food and water, any medication, and a lead or carrier.',{when:p.pets});
+  it(A.supply.items,'p6','For '+(D.kids>1?'each child':'your child')+': a comfort item, cards or a book, and a torch of their own.',{when:K,child:1});
+
+  var ess=0; Object.keys(A).forEach(function(k){ A[k].items.forEach(function(i){ if(i.first) ess++; }); });
+  var essW=NUMW[ess]||String(ess);
+  var L=[
+   {n:1,name:'Routine',hero:'Nothing needs doing beyond your normal routine.',todo:'Keep the basics at home and check in now and then.'},
+   {n:2,name:'Aware',hero:'Nothing to change day to day. Use a quiet evening to get the basics in place.',todo:'Do the '+essW+' essentials once. Glance at this dashboard now and then.'},
+   {n:3,name:'Elevated',hero:'Keep your normal routine. Use this week to finish the basics: water, food, cash, '+(K?'a family plan':'a plan')+' and your phone\u2019s emergency alerts.',todo:'Finish the '+essW+' essentials this week. Buy a little extra each shop. Check this dashboard daily.'},
+   {n:4,name:'High',hero:'Take steps today. Finish the essentials now, keep phones and power banks charged, and follow official updates.',todo:'Top up '+(p.car?'fuel and ':'')+'cash, charge everything, '+(K?'speak to your '+(D.kids>1?'children\u2019s':'child\u2019s')+' school or nursery, ':'')+'and check official sources at least twice a day. Avoid any affected areas.'},
+   {n:5,name:'Critical',hero:'Follow official instructions. The emergency services, your council and BBC broadcasts will tell you what to do.',todo:'Go in, stay in, tune in when told. Keep away from affected areas. Call 999 only for emergencies.'}
+  ];
+  return {areas:A,levels:L,essentials:ess,essWord:essW};
+}
+var LEVELS=[], AREAS={}, ESS=0, ESSW='';
+var SHORT = {energy:'Power',cyber:'Cyber',comms:'Cables and GPS',security:'Terror and sabotage',military:'Military',supply:'Supplies'};
+var ORDER = ['energy','cyber','comms','security','military','supply'];
+var TIERS = {1:{t:'Official source',s:'sq-full'},2:{t:'Established press',s:'sq-half'},3:{t:'Specialist or analyst',s:'sq-none'}};
+
+/* ---------- helpers ---------- */
+var NS='http://www.w3.org/2000/svg';
+function h(tag,props){
+  var e=document.createElement(tag), i, k, c;
+  props=props||{};
+  for(k in props){ if(k==='class') e.className=props[k]; else if(k==='text') e.textContent=props[k];
+    else if(k.slice(0,2)==='on') e.addEventListener(k.slice(2),props[k]); else if(props[k]!==false&&props[k]!=null) e.setAttribute(k,props[k]); }
+  for(i=2;i<arguments.length;i++){ c=arguments[i]; if(c==null||c===false) continue; e.appendChild(typeof c==='string'?document.createTextNode(c):c); }
+  return e;
+}
+function s(tag,props){
+  var e=document.createElementNS(NS,tag), i, k, c;
+  props=props||{};
+  for(k in props){ if(k==='text') e.textContent=props[k]; else e.setAttribute(k,props[k]); }
+  for(i=2;i<arguments.length;i++){ c=arguments[i]; if(c) e.appendChild(c); }
+  return e;
+}
+function useIcon(id,cls,size){ var v=s('svg',{'class':cls||'','width':size||14,'height':size||14,'aria-hidden':'true'}); v.appendChild(s('use',{href:'#'+id})); return v; }
+function safeHref(u){ return /^https?:\/\//i.test(u||'')?u:null; }
+function lc(n){ return 'var(--l'+n+')'; }
+var store={
+  get:function(k,d){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set:function(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function pd(iso){ var d=new Date(iso); return isNaN(d)?null:d; }
+function fmtDate(iso,prec){ var d=pd(iso); if(!d) return ''; return prec==='month'?MON[d.getUTCMonth()]+' '+d.getUTCFullYear():d.getUTCDate()+' '+MON[d.getUTCMonth()]+' '+d.getUTCFullYear(); }
+function ago(iso,prec){
+  var d=pd(iso); if(!d) return ''; var ref=feed&&feed.mode==='snapshot'?pd(feed.generated_at):new Date();
+  var days=Math.floor((ref-d)/864e5); if(prec==='month') return '';
+  if(days<=0){ var hrs=Math.max(1,Math.floor((ref-d)/36e5)); return hrs+' h ago'; }
+  return days===1?'1 day ago':days<60?days+' days ago':Math.round(days/30.4)+' months ago';
+}
+function dayMon(iso,prec){ var d=pd(iso); if(!d) return ''; return prec==='month'?MON[d.getUTCMonth()]:d.getUTCDate()+' '+MON[d.getUTCMonth()]; }
+function fmtTime(iso){ var d=pd(iso); return d?d.toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''; }
+
+/* ---------- state ---------- */
+var feed=null, profile=null, D=derive(DEFAULT_PROFILE), filter='all', open=store.get('thw.open',{}), checks=store.get('thw.checks',{});
+function levelOf(id){ for(var i=0;i<feed.areas.length;i++) if(feed.areas[i].id===id) return feed.areas[i]; }
+function allItems(){ var a=[]; ORDER.forEach(function(k){ AREAS[k].items.forEach(function(it){ a.push(it); }); }); return a; }
+function applyProfile(p){ profile=p; D=derive(p||DEFAULT_PROFILE); var g=buildGuidance(D); AREAS=g.areas; LEVELS=g.levels; ESS=g.essentials; ESSW=g.essWord; }
+
+/* ---------- loading ---------- */
+function loadFeed(){
+  return fetch('feed.json',{cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(j){ if(!j||!j.areas) throw 0; feed=j; }).catch(function(){ feed=SNAP; });
+}
+function loadProfile(){ return Promise.resolve(store.get('thw.profile',null)); }
+var first=true;
+function load(){
+  return Promise.all([loadProfile(),loadFeed()]).then(function(r){
+    if(window.THW_PREVIEW&&!r[0]) r[0]={adults:1,children:[9],pets:false,car:true,meds:false,powered:false,mobility:false,outcode:'',skipped:false,location:null};
+    applyProfile(r[0]); render(); loadLocal();
+    if(first){ first=false; if(!r[0]) openWizard(); }
+  });
+}
+function refreshFeedOnly(){ return loadFeed().then(function(){ render(); }); }
+
+/* ---------- location and local warnings (all from your own browser) ---------- */
+var MET={'South East':'se','London':'se','South West':'sw','East of England':'ee','East Midlands':'em','West Midlands':'wm','Yorkshire and The Humber':'yh','North East':'ne','North West':'nw'};
+var COUNTRY_MET={'Wales':'wl','Northern Ireland':'ni'};
+var MET_NAMES={UK:'the UK',se:'London and South East England',sw:'South West England',ee:'East of England',em:'East Midlands',wm:'West Midlands',yh:'Yorkshire and Humber',ne:'North East England',nw:'North West England',wl:'Wales',ni:'Northern Ireland'};
+var OTHER_FLOOD={Scotland:['SEPA (Scotland)','https://www.sepa.org.uk/'],Wales:['Natural Resources Wales','https://naturalresources.wales/'],'Northern Ireland':['Department for Infrastructure (Northern Ireland)','https://www.infrastructure-ni.gov.uk/']};
+var local={state:'idle',flood:[]};
+function getJSON(url,ms){
+  var ctl=('AbortController' in window)?new AbortController():null, t=ctl?setTimeout(function(){ ctl.abort(); },ms||9000):null;
+  return fetch(url,{signal:ctl?ctl.signal:undefined,credentials:'omit',referrerPolicy:'no-referrer'}).then(function(r){ if(t) clearTimeout(t); if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+}
+function lookupLocation(oc){
+  return getJSON('https://api.postcodes.io/outcodes/'+encodeURIComponent(oc)).then(function(j){
+    var r=j&&j.result; if(!r||r.latitude==null||r.longitude==null) throw new Error('not found');
+    function f(k){ return (r[k]&&r[k][0])||''; }
+    var district=f('admin_district'), county=f('admin_county'), country=f('country');
+    var lat=Math.round(r.latitude*1e4)/1e4, lon=Math.round(r.longitude*1e4)/1e4;
+    function done(region){
+      var label=[district].concat(county&&county!==district?[county]:[]).filter(Boolean).join(', ')||oc;
+      return {outcode:oc,label:label,lat:lat,lon:lon,region:region,country:country,met_region:MET[region]||COUNTRY_MET[country]||'UK'};
+    }
+    return getJSON('https://api.postcodes.io/postcodes?lon='+lon+'&lat='+lat+'&limit=1')
+      .then(function(k){ var res=(k&&k.result)||[]; return done((res[0]&&res[0].region)||''); })
+      .catch(function(){ return done(''); });
+  });
+}
+function loadLocal(){
+  local={state:'idle',flood:[]};
+  var L=profile&&profile.location;
+  if(!L){ renderLocal(); return; }
+  if(L.country&&L.country!=='England'){ local.state='other'; renderLocal(); return; }
+  local.state='loading'; renderLocal();
+  getJSON('https://environment.data.gov.uk/flood-monitoring/id/floods?lat='+L.lat+'&long='+L.lon+'&dist=15&min-severity=3')
+    .then(function(j){
+      local.flood=((j&&j.items)||[]).filter(function(x){ return x.severityLevel<=3; })
+        .sort(function(a,b){ return a.severityLevel-b.severityLevel; }).slice(0,8)
+        .map(function(x){ return {title:x.description||'Flood area',severity:x.severity||'',msg:x.message||''}; });
+      local.state='ok';
+    }).catch(function(){ local.state='error'; }).then(renderLocal);
+}
+function retryLookup(){
+  if(!profile||!profile.outcode) return;
+  lookupLocation(profile.outcode).then(function(loc){ profile.location=loc; profile.locationFailed=false; }).catch(function(){ profile.locationFailed=true; })
+    .then(function(){ store.set('thw.profile',profile); render(); loadLocal(); });
+}
+
+/* ---------- rendering ---------- */
+function render(){
+  renderTagline(); renderChecks(); renderChanges(); renderNow(); renderKit(); renderStatus(); renderHousehold(); renderHero(); renderStart(); renderAreas(); renderLegend(); renderSignals(); renderLocal(); renderSources();
+}
+function renderHousehold(){
+  var b=document.getElementById('hh'), p=profile;
+  var txt;
+  if(!p||p.skipped){ txt='General advice. Tell us about your household to tailor it.'; }
+  else {
+    var k=(p.children||[]).length;
+    txt='Advice for '+p.adults+(p.adults===1?' adult':' adults')+(k?', '+k+(k===1?' child':' children'):'')+(p.outcode?', '+p.outcode:'')+'.';
+  }
+  document.getElementById('hh-text').textContent=txt;
+  b.textContent=(!p||p.skipped)?'Set up':'Change';
+}
+function renderStatus(){
+  var st=document.getElementById('status'), tx=document.getElementById('status-text'), bn=document.getElementById('banner'), nb=document.getElementById('notice');
+  st.className='status'; bn.hidden=true; nb.hidden=true;
+  if(feed.mode==='snapshot'){
+    tx.textContent='Saved copy, '+fmtDate(feed.generated_at);
+    bn.hidden=false; bn.firstElementChild.textContent='';
+    if(feed.banner){ bn.firstElementChild.appendChild(h('strong',{text:'Preview. '})); bn.firstElementChild.appendChild(document.createTextNode(feed.banner)); }
+    else { bn.firstElementChild.appendChild(h('strong',{text:'Showing a saved copy. '})); bn.firstElementChild.appendChild(document.createTextNode('The latest data could not be loaded, so this is the version from '+fmtDate(feed.generated_at)+'. Check your connection and reload.')); }
+  } else {
+    var hrs=(Date.now()-pd(feed.generated_at))/36e5;
+    if(hrs>3){ st.className='status stale'; tx.textContent='Out of date: last update '+(hrs<24?Math.floor(hrs)+' h ago':Math.floor(hrs/24)+' days ago'); }
+    else { st.className='status live'; tx.textContent='Updated '+fmtTime(feed.generated_at); }
+  }
+  var rv=feed.reviewed?pd(feed.reviewed):null, SD=feed.stale_days||60, stale=!!(rv&&feed.mode!=='snapshot'&&(Date.now()-rv)/864e5>SD), an=feed.auto_notices||[];
+  if(feed.notice||stale||an.length){
+    nb.hidden=false; var w=nb.firstElementChild; w.textContent='';
+    if(feed.notice){ w.appendChild(h('strong',{text:'Editor\u2019s note. '})); w.appendChild(document.createTextNode(feed.notice+' ')); }
+    an.forEach(function(n){ w.appendChild(h('strong',{text:'Automatic notice. '})); w.appendChild(document.createTextNode(n.text+' ')); var u=safeHref(n.url); if(u){ w.appendChild(h('a',{href:u,target:'_blank',rel:'noopener noreferrer',text:'Read it on GOV.UK'})); w.appendChild(document.createTextNode(' ')); } });
+    if(stale){ w.appendChild(h('strong',{text:'Not reviewed recently. '})); w.appendChild(document.createTextNode('The editor last reviewed these ratings on '+fmtDate(feed.reviewed)+'. Treat them with caution and check official sources.')); }
+  }
+}
+function ladder(level){
+  var sv=s('svg',{'class':'ladder',viewBox:'0 0 200 236','role':'img','aria-label':'Level '+level+' of 5'});
+  var hs=[50,84,118,152,186], i, x, y;
+  for(i=0;i<5;i++){
+    x=8+i*38; y=200-hs[i]; var n=i+1;
+    if(n<=level){
+      var fill=n===5?'url(#hz)':lc(n);
+      sv.appendChild(s('rect',{x:x,y:y,width:30,height:hs[i],fill:fill,stroke:n===level?'var(--hero-fg)':'none','stroke-width':n===level?4:0}));
+    } else {
+      sv.appendChild(s('rect',{x:x+1.5,y:y+1.5,width:27,height:hs[i]-3,fill:'none',stroke:'var(--hero-dim)','stroke-width':3,'stroke-dasharray':'5 5'}));
+    }
+  }
+  var cx=8+(level-1)*38+15;
+  sv.appendChild(s('path',{d:'M'+cx+' 208L'+(cx-9)+' 226H'+(cx+9)+'Z',fill:'var(--hero-fg)'}));
+  return sv;
+}
+function wordSvg(text){
+  var n=text.length, w=n*54;
+  var sv=s('svg',{viewBox:'0 0 '+w+' 92','aria-hidden':'true'});
+  sv.appendChild(s('text',{x:0,y:88,'font-size':118,textLength:w,lengthAdjust:'spacingAndGlyphs',text:text.toUpperCase()}));
+  return sv;
+}
+function renderHero(){
+  var root=document.getElementById('hero'); root.textContent='';
+  var o=feed.overall, L=LEVELS[o.level-1];
+  var word=h('h1',{'class':'word',id:'hero-word','aria-label':L.name,style:'--n:'+L.name.length},wordSvg(L.name));
+  var drivers=h('p',{'class':'by'},o.drivers.length>=feed.areas.length?'All six areas are at level '+o.level+'.':'Set by: ');
+  if(o.drivers.length<feed.areas.length) o.drivers.forEach(function(id,i){
+    var a=levelOf(id); if(!a) return;
+    if(i) drivers.appendChild(document.createTextNode(', '));
+    drivers.appendChild(h('a',{href:'#area-'+id,text:a.name,onclick:function(){ openArea(id,true); }}));
+  });
+  if(o.drivers.length<feed.areas.length) drivers.appendChild(document.createTextNode(o.drivers.length>1?' (each at level '+o.level+').':' (level '+o.level+').'));
+  root.parentNode.className='hero lv'+o.level;
+  root.appendChild(h('p',{'class':'cap'},'Household level today: '+o.level+' of 5'));
+  root.appendChild(word);
+  var rvw=feed.reviewed?h('p',{'class':'by',style:'margin-top:.5em',text:'Ratings last reviewed by the editor on '+fmtDate(feed.reviewed)+'.'}):null;
+  root.appendChild(h('div',{'class':'hero-grid'},ladder(o.level),h('div',null,h('p',{'class':'lead',text:L.hero}),drivers,rvw)));
+}
+function ico(id,size){ return useIcon(id,'',size||52); }
+function renderTagline(){ var tg=document.querySelector('.tagline'); if(tg) tg.hidden=(feed.overall.level===5); }
+function renderChanges(){
+  var box=document.getElementById('changes-box'); box.textContent='';
+  var hs=(feed.history||[]).slice(0,5);
+  if(!hs.length){ box.hidden=true; return; }
+  box.hidden=false;
+  box.appendChild(h('h3',{text:'Changes to the level'}));
+  var ul=h('ul',{'class':'mini'});
+  hs.forEach(function(e){ ul.appendChild(h('li',null,h('strong',{text:fmtDate(e.date)+': '+e.title}),h('div',{'class':'meta',text:e.text}))); });
+  box.appendChild(ul);
+  box.appendChild(h('p',{style:'margin:14px 0 0'},h('a',{href:'history.xml',text:'Subscribe by RSS'}),document.createTextNode(' to get each change in a feed reader. No sign-up and no tracking.')));
+}
+function renderChecks(){
+  var sec=document.getElementById('checks'), g=document.getElementById('checks-grid'); g.textContent='';
+  var list=(feed.checks||[]);
+  if(feed.mode==='snapshot'){
+    sec.hidden=false;
+    document.getElementById('checks-sub').textContent='Live checks need a live connection. If you are worried, check gov.uk/alerts yourself.';
+    return;
+  }
+  if(!list.length){ sec.hidden=true; return; }
+  sec.hidden=false;
+  var t=fmtTime(list[0].checked);
+  document.getElementById('checks-sub').textContent='Official facts, last checked '+t+'. A check only says \u201Cnone\u201D when it has positively read that. If it cannot, it says so.';
+  var LABEL={clear:'Clear',notice:'Notice',alert:'Alert',unknown:'Not confirmed'};
+  list.forEach(function(c){
+    var href=safeHref(c.url);
+    var meta=h('p',{'class':'meta'},href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:'View on '+c.source}):c.source);
+    var cell=h('div',{'class':'cc','data-state':c.state,role:'listitem'},
+      useIcon('s-'+c.state,'',46),
+      h('div',null,
+        h('b',{text:c.name}),
+        h('strong',null,h('span',{'class':'sr',text:LABEL[c.state]+': '}),c.text),
+        h('p',{text:c.detail||''}),
+        meta));
+    if(c.extra){
+      var ex=safeHref(c.extra.url);
+      if(ex){ meta.appendChild(h('br')); meta.appendChild(h('a',{href:ex,target:'_blank',rel:'noopener noreferrer',text:c.extra.text})); }
+    }
+    g.appendChild(cell);
+  });
+}
+function renderNow(){
+  var sec=document.getElementById('now'), box=document.getElementById('now-box'); box.textContent='';
+  var lv=feed.overall.level; sec.hidden=lv<4; if(lv<4) return;
+  var K=D.kids>0, p=D.p, wrap=h('div',{'class':'nowbox lv'+lv});
+  if(lv===4){
+    sec.setAttribute('aria-labelledby','h-now');
+    wrap.appendChild(h('div',{'class':'nowhead',id:'h-now',text:'Today'}));
+    wrap.appendChild(h('p',{'class':'lead',text:'Take these steps today. None of them needs you to leave your normal routine.'}));
+    var tiles=h('div',{'class':'tiles'});
+    var T=[['i-battery','Charge every phone and power bank now.'],
+           ['i-cash','Get some cash in small notes'+(p.car?', and fill the fuel tank.':'.')],
+           ['i-water','Check you have 3 days of water and food.'],
+           K?['i-child','Speak to your '+(D.kids>1?'children\u2019s':'child\u2019s')+' school or nursery about their plans.']:null,
+           ['i-tune','Check official updates at least twice a day: BBC, GOV.UK and your council.']].filter(Boolean);
+    T.forEach(function(t){ tiles.appendChild(h('div',{'class':'tile'},ico(t[0]),h('p',{style:'margin:0',text:t[1]}))); });
+    wrap.appendChild(tiles);
+  } else {
+    wrap.appendChild(h('div',{'class':'nowhead',id:'h-now',text:'Follow official instructions'}));
+    wrap.appendChild(h('p',{'class':'lead',text:'The emergency services, your council and the BBC will tell you what to do. Unless they say something different, the standard advice in a major incident is below.'}));
+    var trio=h('div',{'class':'trio'});
+    [['i-in','Go in','Get indoors. Bring children and pets inside with you.'],
+     ['i-stay','Stay in','Stay inside until officials say it is safe to leave.'],
+     ['i-tune','Tune in','BBC Radio 4 or BBC local radio, GOV.UK, and Emergency Alerts on your phone.']].forEach(function(t){
+      trio.appendChild(h('div',null,useIcon(t[0],'',72),h('b',{text:t[1]}),h('p',{text:t[2]})));
+    });
+    wrap.appendChild(trio);
+    wrap.appendChild(h('div',{'class':'dont'},h('strong',{text:'If you are near an attack or in immediate danger'}),h('p',{style:'margin:6px 0 0',text:'Run to safety if you can. If you cannot, hide. Then tell the police on 999. Do not wait for instructions.'})));
+    wrap.appendChild(h('div',{'class':'dont'},h('strong',{text:'Please do not'}),h('ul',null,
+      h('li',{text:'Go towards affected areas to look or help. Leave that to the emergency services.'}),
+      h('li',{text:'Share rumours. Check anything you see against the official sources below.'}),
+      h('li',{text:'Call 999 unless someone is in danger. Keep the lines free.'}))));
+    var L=h('div',{'class':'offlinks'});
+    [['GOV.UK','https://www.gov.uk/'],['BBC News','https://www.bbc.co.uk/news'],['Find your council','https://www.gov.uk/find-local-council']].forEach(function(l){
+      L.appendChild(h('a',{href:l[1],target:'_blank',rel:'noopener noreferrer',text:l[0]}));
+    });
+    wrap.appendChild(L);
+  }
+  box.appendChild(wrap);
+}
+function renderKit(){
+  var g=document.getElementById('kit-grid'); g.textContent='';
+  var N=D.people, p=D.p, K=D.kids>0;
+  var items=[['i-water','Water',N*9+' litres','3 litres each a day, for 3 days'],
+    ['i-supply','Food','3 days','for '+(N===1?'one person':N+' people')+', little or no cooking'],
+    ['i-torch','Torches',String(N),'one each, plus spare batteries'],
+    ['i-tune','Radio','1','battery or wind-up'],
+    ['i-battery','Power banks',String(Math.max(2,p.adults+D.teens)),'kept charged'],
+    ['i-cash','Cash','A few days','in small notes'],
+    ['i-aid','First aid','1 kit',p.meds?'and spare medicines':'and any medicines you take'],
+    ['i-hygiene','Hygiene','Wipes and sanitiser','plus bin bags if the water is off'],
+    ['i-news','Papers','Copies','ID, insurance, key numbers']];
+  if(p.meds) items.push(['i-pill','Medicines','Spare days','ask your pharmacist how']);
+  if(D.baby) items.push(['i-child','Baby supplies','3 days','nappies, wipes, milk or formula']);
+  if(K) items.push(['i-child','Comfort items',String(D.kids),'a torch and a book each']);
+  if(p.pets) items.push(['i-paw','Pets','3 days','food, water, lead or carrier']);
+  items.forEach(function(t){ g.appendChild(h('div',{'class':'kt'},useIcon(t[0],'',58),h('b',{text:t[1]}),h('strong',{text:t[2]}),h('span',{text:t[3]}))); });
+}
+function pips(level){
+  var w=h('span',{'class':'pips',role:'img','aria-label':'Level '+level+' of 5'});
+  for(var i=1;i<=5;i++){ var e=h('i',{'class':i<=level?'on':''}); if(i<=level) e.style.setProperty('--c',lc(level)); w.appendChild(e); }
+  return w;
+}
+function checkbox(it){
+  var inp=h('input',{type:'checkbox','data-id':it.id});
+  inp.checked=!!checks[it.id];
+  inp.addEventListener('change',function(){
+    checks[it.id]=inp.checked; store.set('thw.checks',checks);
+    document.querySelectorAll('input[data-id="'+it.id+'"]').forEach(function(o){ o.checked=inp.checked; });
+    updateMeter();
+  });
+  var lab=h('label',{'class':'chk'},inp,h('span',null,
+    it.first?h('span',{'class':'tag',text:'Start here'}):null,
+    it.child?h('span',{'class':'child',text:D.tag}):null,
+    it.t));
+  return h('li',null,lab);
+}
+function updateMeter(){
+  var all=allItems(), done=all.filter(function(i){return checks[i.id];}).length;
+  var firsts=all.filter(function(i){return i.first;}), fdone=firsts.filter(function(i){return checks[i.id];}).length;
+  var m=document.getElementById('meter'); if(!m) return;
+  m.querySelector('b').textContent=fdone===firsts.length?'All '+ESSW+' essentials done.':fdone+' of '+firsts.length+' essentials done.';
+  m.querySelector('.note').textContent=fdone===firsts.length?'Everything else can wait. Well done.':(done+' of '+all.length+' items ticked in total. One at a time is fine.');
+  m.querySelector('i').style.width=Math.round(done/all.length*100)+'%';
+}
+function renderStart(){
+  document.getElementById('h-start').textContent='Start with these '+ESSW;
+  var box=document.getElementById('start-box'); box.textContent='';
+  var head=h('div',{'class':'start-head'},
+    h('div',{'class':'meter',id:'meter',style:'max-width:none;flex:1 1 100%'},h('b',{style:'font-size:19px'}),h('div',{'class':'bar'},h('i')),h('div',{'class':'meta note',style:'margin-top:6px'})));
+  var ul=h('ul',{'class':'checks'});
+  allItems().filter(function(i){return i.first;}).forEach(function(it){ var c=Object.assign({},it,{first:0}); ul.appendChild(checkbox(c)); });
+  box.appendChild(head); box.appendChild(ul); updateMeter();
+}
+function areaSignals(id){
+  return feed.signals.filter(function(x){ return x.cats.indexOf(id)>-1; }).slice(0,3);
+}
+function renderAreas(){
+  var root=document.getElementById('areas'); root.textContent='';
+  var list=feed.areas.slice().sort(function(a,b){ return b.level-a.level||ORDER.indexOf(a.id)-ORDER.indexOf(b.id); });
+  list.forEach(function(a){
+    var C=AREAS[a.id], isOpen=!!open[a.id], pid='p-'+a.id;
+    var head=h('button',{'class':'area-head','aria-expanded':String(isOpen),'aria-controls':pid,type:'button',onclick:function(){ toggle(a.id); }},
+      (function(){ var i=useIcon(C.icon,'ico',52); return i; })(),
+      h('span',{'class':'area-name',text:a.name}),
+      pips(a.level),
+      h('span',{'class':'lvl'},(function(){ var em=h('em',{text:String(a.level)}); return em; })(),LEVELS[a.level-1].name+(a.basis==='official'?' (follows the official MI5 level)':a.basis==='raised'?' (raised automatically)':a.basis==='evidence'?' (raised by official evidence)':a.lowered?' (lowered automatically)':a.level>a.baseline?' (raised automatically)':'')),
+      h('span',{'class':'chev','aria-hidden':'true'}));
+    head.style.setProperty('--c',lc(a.level));
+    var ul=h('ul',{'class':'checks'}); C.items.forEach(function(it){ ul.appendChild(checkbox(it)); });
+    var sigs=areaSignals(a.id), sl=h('ul',{'class':'mini'});
+    sigs.forEach(function(x){
+      var href=safeHref(x.url);
+      sl.appendChild(h('li',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:x.title}):h('span',{text:x.title}),h('div',{'class':'meta',text:x.source+', '+fmtDate(x.date,x.precision)})));
+    });
+    var right=h('div',{'class':'col'},h('h4',{text:'Do this'}),ul);
+    var left=h('div',{'class':'col'},
+      h('h4',{text:'What is happening'}),h('p',{text:a.reason+niNote(a)}),
+      evidenceBlock(a),
+      h('h4',{text:'What it means for you',style:'margin-top:18px'}),h('p',{text:C.means}),
+      sigs.length?h('div',{'class':'area-signals'},h('h4',{text:'Latest signals',style:'margin-top:18px'}),sl):null,
+      h('p',{'class':'meta',style:'margin-top:14px',text:'Baseline level '+a.baseline+', last reviewed '+fmtDate(a.baseline_as_of)+'.'}));
+    var panel=h('div',{'class':'area-panel'+(isOpen?' open':''),id:pid,role:'region','aria-label':a.name},h('div',null,h('div',{'class':'panel-in'},left,right)));
+    var art=h('article',{'class':'area',id:'area-'+a.id,'data-level':a.level},head,h('p',{'class':'area-status',text:a.status}),panel);
+    art.style.setProperty('--c',lc(a.level));
+    root.appendChild(art);
+  });
+}
+function evidenceBlock(a){
+  var ev=a.evidence||[]; if(!ev.length) return null;
+  var ul=h('ul',{'class':'mini'});
+  ev.forEach(function(e){ var href=safeHref(e.url);
+    ul.appendChild(h('li',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:e.title}):h('span',{text:e.title}),h('div',{'class':'meta',text:e.source+', '+fmtDate(e.date)}))); });
+  return h('div',{'class':'ev'},h('h4',{text:'Official statements behind this level',style:'margin-top:18px'}),ul);
+}
+function niNote(a){
+  var L=profile&&profile.location;
+  if(a.id==='security'&&L&&L.country==='Northern Ireland'&&feed.official&&feed.official.ni_level) return ' In Northern Ireland, MI5 also rates the threat from Northern Ireland-related terrorism separately. It is currently '+feed.official.ni_level+'.';
+  return '';
+}
+function toggle(id){ openArea(id,!open[id]); }
+function openArea(id,state){
+  open[id]=state; store.set('thw.open',open);
+  var art=document.getElementById('area-'+id); if(!art) return;
+  art.querySelector('.area-head').setAttribute('aria-expanded',String(state));
+  art.querySelector('.area-panel').classList.toggle('open',state);
+}
+function renderLegend(){
+  var root=document.getElementById('legend'); root.textContent='';
+  LEVELS.forEach(function(L){
+    var now=L.n===feed.overall.level;
+    var n=h('div',{'class':'n',text:String(L.n)}); n.style.setProperty('--c',lc(L.n));
+    var d=h('div',null,h('h3',null,L.name,now?h('span',{'class':'here',text:'You are here'}):null),h('p',{text:L.todo}));
+    var row=h('div',{'class':'lv'+(now?' now':''),'data-n':L.n},n,d); row.style.setProperty('--c',lc(L.n));
+    root.appendChild(row);
+  });
+}
+function reliability(t){ var T=TIERS[t]||TIERS[3]; return h('span',{'class':'rel'},useIcon(T.s,'',14),T.t); }
+function renderSignals(){
+  var live=feed.mode!=='snapshot';
+  document.getElementById('signals-sub').textContent=live?
+    'Written by the editor from public reporting, each linking to the original, plus automatic headlines from official sources. Newest first.':
+    'A saved copy of the editor\u2019s signals.';
+  var fb=document.getElementById('filters'); fb.textContent='';
+  [['all','All areas']].concat(ORDER.map(function(k){ return [k,SHORT[k]]; })).forEach(function(p){
+    fb.appendChild(h('button',{type:'button','aria-pressed':String(filter===p[0]),text:p[1],onclick:function(){ filter=p[0]; renderSignals(); }}));
+  });
+  var list=feed.signals.filter(function(x){ return filter==='all'||x.cats.indexOf(filter)>-1; });
+  drawTimeline(list);
+  var root=document.getElementById('sigs'); root.textContent='';
+  if(!list.length){ root.appendChild(h('div',{'class':'empty',text:'No signals for this area in the period. That is normal and is good news.'})); return; }
+  var recent=list.filter(function(x){return !x.background;}), back=list.filter(function(x){return x.background;});
+  function row(x){
+    var href=safeHref(x.url);
+    var t=h('h3',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:x.title}):x.title);
+    var tags=x.cats.map(function(c){return SHORT[c];}).join(', ');
+    var also=x.corroboration>1?' Also reported by '+(x.corroboration-1)+' other '+(x.corroboration===2?'source':'sources')+'.':'';
+    return h('article',{'class':'sig'},
+      h('time',{datetime:x.date},dayMon(x.date,x.precision),h('small',{text:String(pd(x.date).getUTCFullYear())}),ago(x.date,x.precision)?h('small',{text:ago(x.date,x.precision)}):null),
+      h('div',null,t,(x.summary||also)?h('p',{text:x.summary+also}):null,h('div',{'class':'meta',style:'display:flex;flex-wrap:wrap;gap:4px 18px'},reliability(x.tier),h('span',{text:'From '+x.source}),x.auto?h('span',{text:'Automatic: the source\u2019s own headline and summary'}):null)),
+      null);
+  }
+  recent.forEach(function(x){ root.appendChild(row(x)); });
+  if(back.length){ root.appendChild(h('div',{'class':'sep',text:'Earlier background'})); back.forEach(function(x){ root.appendChild(row(x)); }); }
+}
+function drawTimeline(list){
+  var wrap=document.getElementById('tl-wrap'); wrap.textContent='';
+  if(!list.length) return;
+  var W=1000, L=150, R=24, top=14, rowH=30, H=top+ORDER.length*rowH+30;
+  var end=pd(feed.generated_at)||new Date(), start=new Date(Date.UTC(end.getUTCFullYear(),end.getUTCMonth()-9,1));
+  var span=end-start, X=function(d){ return L+(Math.max(0,Math.min(1,(d-start)/span)))*(W-L-R); };
+  var sv=s('svg',{'class':'tl',viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'Timeline of signals by area over the last ten months'});
+  ORDER.forEach(function(k,i){
+    var y=top+i*rowH+rowH/2;
+    sv.appendChild(s('line',{'class':'grid',x1:L,x2:W-R,y1:y,y2:y}));
+    sv.appendChild(s('text',{x:0,y:y+4,text:SHORT[k]}));
+  });
+  var m=new Date(start), t;
+  while(m<=end){
+    var x=X(m); sv.appendChild(s('line',{'class':'grid',x1:x,x2:x,y1:top,y2:top+ORDER.length*rowH}));
+    sv.appendChild(s('text',{x:x+3,y:H-8,text:MON[m.getUTCMonth()]}));
+    m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
+  }
+  list.forEach(function(sg){
+    var d=pd(sg.date); if(!d) return;
+    sg.cats.forEach(function(c){
+      var i=ORDER.indexOf(c); if(i<0) return;
+      var r=s('rect',{'class':'mk'+(sg.tier===3?' t3':''),x:X(d)-6,y:top+i*rowH+rowH/2-6,width:12,height:12});
+      r.appendChild(s('title',{text:fmtDate(sg.date,sg.precision)+': '+sg.title}));
+      sv.appendChild(r);
+    });
+  });
+  wrap.appendChild(sv);
+}
+function renderLocal(){
+  var root=document.getElementById('local-box'); root.textContent='';
+  var L=profile&&profile.location, code=L?L.met_region:null;
+  var c1=h('div',{'class':'box'},h('h3',{text:'Flood warnings'+(L?', '+L.label:'')}));
+  var c2=h('div',{'class':'box'},h('h3',{text:'Weather warnings'}));
+  if(!L){
+    var msg=(profile&&profile.outcode&&profile.locationFailed)?'Your postcode area could not be looked up just now (you may be offline, or the lookup service is blocked). Your household details are saved.':'Add the first half of your postcode in the setup to see flood and weather warnings for where you live.';
+    c1.appendChild(h('p',{text:msg}));
+    c1.appendChild(h('button',{type:'button','class':'sec',text:(profile&&profile.outcode)?'Try again':'Add my postcode',onclick:function(){ if(profile&&profile.outcode) retryLookup(); else openWizard(); }}));
+    c2.appendChild(h('p',{text:'Weather warnings for your region appear here once your postcode area is set.'}));
+  } else {
+    if(local.state==='loading') c1.appendChild(h('p',{text:'Checking the Environment Agency\u2026'}));
+    else if(local.state==='ok'){
+      if(!local.flood.length) c1.appendChild(h('p',{text:'No flood alerts or warnings within about 15 km of the middle of '+L.outcode+'.'}));
+      else { var u=h('ul',{'class':'mini'}); local.flood.forEach(function(f){ u.appendChild(h('li',null,h('strong',{text:f.title}),h('div',{'class':'meta',text:f.severity}))); }); c1.appendChild(u); }
+      c1.appendChild(h('p',{'class':'meta',style:'margin-top:12px',text:'This uses Environment Agency flood and river level data from the real-time data API (Beta).'}));
+    }
+    else if(local.state==='other'){
+      var o=OTHER_FLOOD[L.country]||['your national flood agency','https://www.gov.uk/'];
+      c1.appendChild(h('p',{text:'The Environment Agency covers England only. For '+(L.country||'your area')+', check '}));
+      c1.lastChild.appendChild(h('a',{href:o[1],target:'_blank',rel:'noopener noreferrer',text:o[0]})); c1.lastChild.appendChild(document.createTextNode('.'));
+    }
+    else {
+      c1.appendChild(h('p',{text:'Your browser could not reach the Environment Agency just now. Check directly:'}));
+      c1.appendChild(h('a',{href:'https://check-for-flooding.service.gov.uk/',target:'_blank',rel:'noopener noreferrer',text:'Check for flooding (GOV.UK)'}));
+    }
+    var wx=feed.weather&&(feed.weather[code]||null), wname=MET_NAMES[code]||'your region';
+    if(!feed.weather){
+      c2.appendChild(h('p',{text:'Weather warnings load with the live data.'}));
+    } else if(wx===null){
+      c2.appendChild(h('p',{text:'Regional weather warnings are unavailable right now. Check the Met Office:'}));
+    } else if(!wx.length){
+      c2.appendChild(h('p',{text:'No weather warnings for '+wname+'.'}));
+    } else {
+      var w=h('ul',{'class':'mini'}); wx.forEach(function(f){ var href=safeHref(f.url); w.appendChild(h('li',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:f.title}):h('span',{text:f.title}))); }); c2.appendChild(w);
+    }
+    if(code==='UK'&&feed.weather) c2.appendChild(h('p',{'class':'meta',text:'Your area does not map to a single Met Office region, so this shows UK-wide warnings.'}));
+    c2.appendChild(h('p',{'class':'meta',style:'margin-top:12px'},h('a',{href:'https://www.metoffice.gov.uk/weather/warnings-and-advice',target:'_blank',rel:'noopener noreferrer',text:'Met Office weather warnings'}),document.createTextNode(', licensed under the Open Government Licence v3.0.')));
+  }
+  root.appendChild(c1); root.appendChild(c2);
+}
+function renderSources(){
+  var box=document.getElementById('src-box'); box.textContent='';
+  box.appendChild(h('h3',{text:'Automatic official feeds right now'}));
+  if(feed.mode==='snapshot'){ box.appendChild(h('p',{text:'Not available in a saved copy.'})); return; }
+  var ul=h('ul',{'class':'src'});
+  (feed.sources_used||[]).forEach(function(x){ var href=safeHref(x.url);
+    ul.appendChild(h('li',null,useIcon('sq-full','',14),h('span',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:x.name}):x.name,h('span',{'class':'meta',text:'  '+x.licence})))); });
+  box.appendChild(ul);
+  if((feed.data_issues||[]).length) box.appendChild(h('p',{'class':'meta',text:'Unavailable at the moment: '+feed.data_issues.join(', ')+'. Ratings are not affected.'}));
+}
+
+/* ---------- display settings ---------- */
+var DEF_DISPLAY={theme:'system',text:'standard',contrast:'standard',read:'standard',motion:'standard',view:'full'};
+var display=Object.assign({},DEF_DISPLAY,store.get('thw.display',{}));
+function applyDisplay(){
+  var r=document.documentElement, d=display;
+  if(d.theme==='system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',d.theme);
+  ['text','contrast','read','motion','view'].forEach(function(k){ r.setAttribute('data-'+k,d[k]); });
+}
+var DISP_OPTS=[
+  ['theme','Colour',[['system','Match my device'],['light','Light'],['dark','Dark']]],
+  ['text','Text size',[['standard','Standard'],['large','Large'],['xl','Largest']]],
+  ['contrast','Contrast',[['standard','Standard'],['high','High']]],
+  ['read','Reading',[['standard','Standard'],['easy','Easier: wider letters and spacing']]],
+  ['motion','Movement',[['standard','Standard'],['reduce','Reduced']]],
+  ['view','Layout',[['full','Full'],['calm','Calm: quieter and smaller']]]
+];
+function openDisplay(){
+  var dlg=document.getElementById('disp'), f=document.getElementById('disp-form'); f.textContent='';
+  f.appendChild(h('div',{'class':'wz-head'},h('h2',{id:'disp-title',text:'Display settings'})));
+  var body=h('div',{'class':'wz-body'});
+  body.appendChild(h('p',{text:'Changes apply straight away and are saved on this device only.'}));
+  DISP_OPTS.forEach(function(o){
+    var fs=h('fieldset',{'class':'seg'},h('legend',{text:o[1]})), row=h('div',{'class':'opts'});
+    o[2].forEach(function(v){
+      var inp=h('input',{type:'radio',name:'d-'+o[0],value:v[0]}); inp.checked=display[o[0]]===v[0];
+      inp.addEventListener('change',function(){ display[o[0]]=v[0]; store.set('thw.display',display); applyDisplay(); });
+      row.appendChild(h('label',null,inp,h('span',{text:v[1]})));
+    });
+    fs.appendChild(row); body.appendChild(fs);
+  });
+  f.appendChild(body);
+  f.appendChild(h('div',{'class':'wz-foot'},
+    h('button',{type:'button','class':'pri',text:'Done',onclick:function(){ try{ dlg.close(); }catch(e){ dlg.removeAttribute('open'); } }}),
+    h('button',{type:'button','class':'linkbtn',text:'Reset to standard',onclick:function(){ display=Object.assign({},DEF_DISPLAY); store.set('thw.display',display); applyDisplay(); openDisplay(); }})));
+  if(!dlg.open){ try{ dlg.showModal(); }catch(e){ dlg.setAttribute('open',''); } }
+}
+applyDisplay();
+document.getElementById('dispbtn').addEventListener('click',openDisplay);
+
+/* ---------- setup wizard ---------- */
+function outward(raw){
+  var t=String(raw||'').toUpperCase().replace(/\s+/g,'');
+  if(/^[A-Z]{1,2}[0-9][A-Z0-9]?$/.test(t)) return t;
+  var m=t.match(/^([A-Z]{1,2}[0-9][A-Z0-9]?)[0-9][A-Z]{2}$/); return m?m[1]:null;
+}
+var wz={step:0,d:null,err:''};
+function openWizard(){
+  var p=profile&&!profile.skipped?profile:null;
+  wz.d={postcode:p?p.outcode:'',adults:p?p.adults:1,children:p?p.children.slice():[],pets:!!(p&&p.pets),car:p?!!p.car:true,meds:!!(p&&p.meds),powered:!!(p&&p.powered),mobility:!!(p&&p.mobility)};
+  wz.step=0; wz.err='';
+  var dlg=document.getElementById('wiz');
+  if(!dlg.open){ try{ dlg.showModal(); }catch(e){ dlg.setAttribute('open',''); } }
+  drawWizard();
+}
+function closeWizard(){ var dlg=document.getElementById('wiz'); try{ dlg.close(); }catch(e){ dlg.removeAttribute('open'); } }
+function stepper(label,val,min,max,onchange){
+  var out=h('output',{'aria-live':'polite',text:String(val)});
+  function bump(dx){ var v=Math.max(min,Math.min(max,val+dx)); if(v!==val){ val=v; out.textContent=String(v); onchange(v); } }
+  return h('div',{'class':'stp',role:'group','aria-label':label},
+    h('button',{type:'button','aria-label':'One fewer '+label,text:'\u2212',onclick:function(){ bump(-1); }}),out,
+    h('button',{type:'button','aria-label':'One more '+label,text:'+',onclick:function(){ bump(1); }}));
+}
+function checkRow(key,label,note){
+  var inp=h('input',{type:'checkbox'}); inp.checked=!!wz.d[key];
+  inp.addEventListener('change',function(){ wz.d[key]=inp.checked; });
+  return h('li',null,h('label',{'class':'chk'},inp,h('span',null,label,note?h('small',{style:'display:block;color:var(--ink2)',text:note}):null)));
+}
+function drawWizard(){
+  var f=document.getElementById('wiz-form'); f.textContent='';
+  var titles=['Where do you live?','Who lives in your home?','Anything that changes the advice?'];
+  var steps=h('div',{'class':'wz-steps','aria-hidden':'true'}); [0,1,2].forEach(function(i){ steps.appendChild(h('i',{'class':i<=wz.step?'on':''})); });
+  f.appendChild(h('div',{'class':'wz-head'},h('h2',{id:'wiz-title',text:titles[wz.step]}),steps,h('div',{'class':'sr',text:'Step '+(wz.step+1)+' of 3'})));
+  var body=h('div',{'class':'wz-body'});
+  if(wz.err) body.appendChild(h('p',{'class':'err',role:'alert',text:wz.err}));
+  if(wz.step===0){
+    var inp=h('input',{type:'text',id:'wz-pc',autocomplete:'postal-code',autocapitalize:'characters',spellcheck:'false',value:wz.d.postcode,maxlength:'9','aria-describedby':'wz-pc-help'});
+    inp.addEventListener('input',function(){ wz.d.postcode=inp.value; });
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); wz.d.postcode=inp.value; wizNext(); } });
+    body.appendChild(h('p',null,'Optional. It is only used to show flood and weather warnings for your area. Leave it blank to skip.'));
+    body.appendChild(h('label',{'class':'fld'},h('span',{text:'Your postcode'}),inp,
+      h('small',{id:'wz-pc-help',text:'The first half is enough, for example BN21. If you type the whole thing, only the first half is kept. Your browser then asks postcodes.io and the Environment Agency about that area directly. This site never sees it.'})));
+  } else if(wz.step===1){
+    body.appendChild(h('div',{'class':'fld'},h('span',{text:'Adults (18 and over)'}),stepper('adult',wz.d.adults,1,10,function(v){ wz.d.adults=v; })));
+    var ages=h('div',{'class':'ages'});
+    function drawAges(){
+      ages.textContent='';
+      wz.d.children.forEach(function(a,i){
+        var sel=h('select',{id:'age'+i}); for(var n=0;n<=17;n++) sel.appendChild(h('option',{value:String(n),text:n===0?'Under 1':String(n)}));
+        sel.value=String(a); sel.addEventListener('change',function(){ wz.d.children[i]=parseInt(sel.value,10); });
+        ages.appendChild(h('div',null,h('label',{'for':'age'+i,text:'Child '+(i+1)+' age'}),sel));
+      });
+    }
+    body.appendChild(h('div',{'class':'fld'},h('span',{text:'Children (under 18)'}),
+      stepper('child',wz.d.children.length,0,8,function(v){ while(wz.d.children.length<v) wz.d.children.push(9); wz.d.children.length=v; drawAges(); }),ages,
+      h('small',{text:'Ages decide which items appear, such as baby supplies or school plans.'})));
+    drawAges();
+  } else {
+    body.appendChild(h('p',null,'Tick anything that applies. Each one adds or changes a checklist item. All optional.'));
+    var ul=h('ul',{'class':'checks'});
+    ul.appendChild(checkRow('car','You drive'));
+    ul.appendChild(checkRow('pets','You have pets'));
+    ul.appendChild(checkRow('meds','Someone takes regular medicines'));
+    ul.appendChild(checkRow('powered','Someone relies on powered medical equipment'));
+    ul.appendChild(checkRow('mobility','Someone is over 75 or has limited mobility'));
+    body.appendChild(ul);
+    body.appendChild(h('p',{'class':'meta',text:'Your answers are kept on the computer running this dashboard, and on this device. They are used only to tailor the advice. You can delete them at any time from this window.'}));
+  }
+  f.appendChild(body);
+  var foot=h('div',{'class':'wz-foot'});
+  if(wz.step>0) foot.appendChild(h('button',{type:'button','class':'sec',text:'Back',onclick:function(){ wz.err=''; wz.step--; drawWizard(); }}));
+  foot.appendChild(h('button',{type:'button','class':'pri',text:wz.step<2?'Next':'Save and build my plan',onclick:wizNext}));
+  foot.appendChild(h('span',{'class':'spacer'}));
+  if(wz.step===0){ foot.appendChild(h('button',{type:'button','class':'linkbtn',text:'Skip for now',onclick:function(){ saveProfile(Object.assign({},DEFAULT_PROFILE)); }})); }
+  if(profile&&!profile.skipped&&wz.step===0){ foot.appendChild(h('button',{type:'button','class':'linkbtn',text:'Delete my details',onclick:wipeProfile})); }
+  if(profile&&wz.step===0){ foot.appendChild(h('button',{type:'button','class':'linkbtn',text:'Cancel',onclick:closeWizard})); }
+  f.appendChild(foot);
+  var first=f.querySelector('input,button.stp button,select'); if(first&&wz.step===0) first.focus();
+}
+function wizNext(){
+  wz.err='';
+  if(wz.step===0){
+    var raw=(wz.d.postcode||'').trim(), oc=raw?outward(raw):'';
+    if(raw&&!oc){ wz.err='That does not look like a UK postcode. Try the first half, for example BN21, or leave it blank.'; return drawWizard(); }
+    wz.d.postcode=oc; wz.step=1; return drawWizard();
+  }
+  if(wz.step===1){ wz.step=2; return drawWizard(); }
+  saveProfile({postcode:wz.d.postcode,adults:wz.d.adults,children:wz.d.children.slice(),pets:wz.d.pets,car:wz.d.car,meds:wz.d.meds,powered:wz.d.powered,mobility:wz.d.mobility,skipped:false});
+}
+function saveProfile(payload){
+  var p=Object.assign({},payload,{outcode:payload.postcode||'',location:null}); delete p.postcode;
+  function finish(){ store.set('thw.profile',p); applyProfile(p); closeWizard(); render(); window.scrollTo(0,0); loadLocal(); }
+  if(!p.outcode||p.skipped){ finish(); return; }
+  var btn=document.querySelector('#wiz .pri'); if(btn){ btn.disabled=true; btn.textContent='Looking up your area\u2026'; }
+  lookupLocation(p.outcode).then(function(loc){ p.location=loc; }).catch(function(){ p.locationFailed=true; }).then(finish);
+}
+function wipeProfile(){
+  store.set('thw.profile',null); store.set('thw.checks',{}); checks={};
+  applyProfile(null); local={state:'idle',flood:[]}; render(); wz.err=''; profile=null; openWizard();
+}
+document.getElementById('hh').addEventListener('click',openWizard);
+document.getElementById('wiz').addEventListener('cancel',function(e){ if(!profile) e.preventDefault(); });
+
+document.getElementById('print').addEventListener('click',function(){
+  ORDER.forEach(function(k){ var p=document.getElementById('p-'+k); if(p) p.classList.add('open'); });
+  try{ window.print(); }catch(e){}
+});
+var loadP=load();
+if(window.THW_PREVIEW){ window.__thw={ready:loadP,setFeed:function(f){ feed=f; render(); }}; }
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  try{ navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){}
+}
+setInterval(function(){ if(feed&&feed.mode!=='snapshot') refreshFeedOnly(); },15*60*1000);
+})();
+</script>
+</body>
+</html>
