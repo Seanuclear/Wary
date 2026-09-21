@@ -1,16 +1,16 @@
 {
-  "_readme": "Only official, open-licence sources are fetched automatically for the public site. Press feeds are deliberately absent: their terms allow personal use, not republication. Feed URLs were not live-tested when this was written. Failures are shown on the site as 'some official feeds unavailable' and in the Actions log. Widened set: adds the Foreign Office, UK Health Security Agency, Transport, the Maritime and Coastguard Agency, Environment/Food/Rural Affairs, Science/Innovation/Technology, the Drinking Water Inspectorate and US CISA advisories. GOV.UK feed addresses follow the standard pattern but were not live-tested; any that fail just appear as unavailable.",
+  "_readme": "Only official, open-licence sources are fetched automatically for the public site. Press feeds are deliberately absent: their terms allow personal use, not republication. Feed URLs were not live-tested when this was written. Failures are shown on the site as 'some official feeds unavailable' and in the Actions log. Widened set: adds the Foreign Office, UK Health Security Agency, Transport, the Maritime and Coastguard Agency, Environment/Food/Rural Affairs and Science/Innovation/Technology. The terrorism level is read from GOV.UK's terrorism page first, with MI5's own page as a back-up (MI5's site refuses requests from GitHub's servers, HTTP 403). The Drinking Water Inspectorate's GOV.UK feed was withdrawn (HTTP 410) and CISA's site refuses automated requests (HTTP 403), so both were removed.",
   "sources": [
     {
       "id": "mi5-level",
-      "name": "MI5 threat level page",
+      "name": "MI5 threat level page (back-up)",
       "kind": "mi5_level",
       "url": "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels",
       "licence": "Crown copyright, mi5.gov.uk"
     },
     {
       "id": "gov-terror",
-      "name": "GOV.UK: Terrorism threat level (back-up)",
+      "name": "GOV.UK: Terrorism threat level",
       "kind": "mi5_level",
       "url": "https://www.gov.uk/terrorism-national-emergency",
       "licence": "OGL v3.0"
@@ -92,20 +92,6 @@
       "kind": "rss",
       "url": "https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom",
       "licence": "OGL v3.0"
-    },
-    {
-      "id": "gov-dwi",
-      "name": "GOV.UK: Drinking Water Inspectorate",
-      "kind": "rss",
-      "url": "https://www.gov.uk/government/organisations/drinking-water-inspectorate.atom",
-      "licence": "OGL v3.0"
-    },
-    {
-      "id": "cisa",
-      "name": "CISA advisories (US government)",
-      "kind": "rss",
-      "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
-      "licence": "US government work, public domain"
     }
   ],
   "met_regions": [
@@ -166,8 +152,7 @@
     }
   ],
   "approved_hosts": [
-    "gov.uk",
-    "cisa.gov"
+    "gov.uk"
   ],
   "_approved_hosts_readme": "A safety net. Only sources whose web address ends with one of these domains are fetched. To add a source from another official body, add its domain here as well. Do not add news outlets: their terms do not allow automatic republishing."
 }
