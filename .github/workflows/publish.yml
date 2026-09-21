@@ -28,6 +28,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Check the files are in the right folders (warnings only)
+        continue-on-error: true
+        run: |
+          for f in tools/publish.py tools/build_site.py src/index.src.html editorial/baseline.json editorial/signals.json site.json official_sources.json; do
+            [ -f "$f" ] || echo "::error::Missing $f. It must be in exactly this folder."
+          done
+          for f in publish.py build_site.py test_publish.py index.src.html manifest.webmanifest signals.json; do
+            [ -f "$f" ] && echo "::warning::Misplaced file $f at the top level of the repository. It belongs inside a folder, and this copy is not used. Delete it."
+          done
+          true
       - name: Run the self-checks (a warning here never stops the site publishing)
         continue-on-error: true      # the self-checks are for the developer. Your own files are validated by the publish step below.
         run: python -m unittest discover -s tests
