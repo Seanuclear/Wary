@@ -1,0 +1,28 @@
+# GitHub switches scheduled workflows OFF after 60 days with no repository activity. Once a week this checks the age of the last commit and,
+# after 40 quiet days, makes one empty commit so the schedule stays on. It is deliberately a SEPARATE, tiny workflow: it is the only thing
+# that needs permission to write to the repository, so the normal build does not have that permission.
+# (If you ever turn on a rule that requires pull requests for main, this empty commit will be blocked. Turn it on only after reading README.)
+name: Keep scheduled builds alive
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Empty commit if the repository has been quiet for 40 days
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          quiet_days=$(( (now - last) / 86400 ))
+          echo "Days since the last commit: $quiet_days"
+          if [ "$quiet_days" -ge 40 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Keep scheduled builds alive"
+            git push
+          fi
