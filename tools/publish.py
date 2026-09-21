@@ -34,7 +34,8 @@ except Exception:  # pragma: no cover
     import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UA = "HouseholdThreatWatch-public/1.0 (non-commercial; contact via site)"
+CODE_VERSION = "2026-09-21-diagnostics"
+UA = "Mozilla/5.0 (compatible; WaryBot/1.0; non-commercial; +https://wary.org.uk)"
 AREAS = ["energy", "cyber", "comms", "security", "military", "supply"]
 AREA_NAMES = {"energy": "Power, gas and fuel", "cyber": "Cyber attacks on services", "comms": "Cables, GPS and phone networks",
               "security": "Terrorism and sabotage", "military": "Military and nuclear escalation", "supply": "Food, water and supply chains"}
@@ -117,7 +118,8 @@ def fetch(url, source_id, fixtures, headers=None):
                 with open(p, "rb") as f:
                     return f.read()
         raise FileNotFoundError(f"no fixture for {source_id}")
-    with urlopen(Request(url, headers={"User-Agent": UA, "Accept": "*/*", **(headers or {})}), timeout=20) as r:
+    with urlopen(Request(url, headers={"User-Agent": UA, "Accept": "text/html,application/xhtml+xml,application/xml,application/json;q=0.9,*/*;q=0.8",
+                                           "Accept-Language": "en-GB,en;q=0.8", **(headers or {})}), timeout=20) as r:
         return r.read(3_000_000)
 
 
@@ -183,8 +185,8 @@ def accept_terror(found, contextual, last_known, state=None, now=None, hold_hour
 ALERTS_URL = "https://www.gov.uk/alerts"
 GRID_URL = "https://data.elexon.co.uk/bmrs/api/v1/system/warnings?format=json"
 GAS_URL = "https://www.nationalgas.com/balancing/margins-notices-and-gas-deficit-warnings"
-TERROR_TEXT = {"LOW": "An attack is unlikely.", "MODERATE": "An attack is possible but not likely.", "SUBSTANTIAL": "An attack is likely.",
-               "SEVERE": "An attack is highly likely.", "CRITICAL": "An attack is expected imminently."}
+TERROR_TEXT = {"LOW": "An attack is highly unlikely.", "MODERATE": "An attack is possible but not likely.", "SUBSTANTIAL": "An attack is likely.",
+               "SEVERE": "An attack is highly likely.", "CRITICAL": "An attack is highly likely in the near future."}
 
 
 def check_alerts(fixtures, now):
@@ -302,7 +304,8 @@ def check_terror(official, baseline, now):
     if not live:
         detail += f" Last confirmed {baseline['official_terror_baseline']['as_of']}. The live check is unavailable."
     return {"id": "terror", "name": "Terrorism threat level", "state": state, "text": lvl, "detail": detail.strip(),
-            "url": "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels", "source": "MI5", "checked": iso(now)}
+            "url": "https://www.gov.uk/terrorism-national-emergency" if official.get("terror_source") == "GOV.UK" else "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels",
+            "source": "GOV.UK" if official.get("terror_source") == "GOV.UK" else "MI5", "checked": iso(now)}
 
 
 def http_status(url):
@@ -823,7 +826,7 @@ def auto_rules(items, checks, now, terror=None, state=None, hold_hours=6):
     if terror == "CRITICAL":
         active.add("mi5-critical")
         lvl = 5 if held(state, "mi5-critical", now, hold_hours) else 4
-        bumps["security"] = (lvl, f"the official terrorism threat level is CRITICAL (an attack is expected imminently){' and has held for over ' + format(hold_hours, 'g') + ' hours' if lvl == 5 else ''}", "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels")
+        bumps["security"] = (lvl, f"the official terrorism threat level is CRITICAL (an attack is highly likely in the near future){' and has held for over ' + format(hold_hours, 'g') + ' hours' if lvl == 5 else ''}", "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels")
     if cobr_seen and attack_items:  # two separate official statements: an attack on the UK named AND COBR convened
         active.add("gov-attack")
         lvl = 5 if held(state, "gov-attack", now, hold_hours) else 4
@@ -843,16 +846,35 @@ def host_approved(url, approved):
     return any(host == h or host.endswith("." + h) for h in approved)
 
 
+def why(e):
+    """A short, plain reason a source could not be used. Shown on the page so nobody has to dig through logs."""
+    from urllib.error import HTTPError, URLError
+    if isinstance(e, HTTPError):
+        return f"the site answered HTTP {e.code}" + (" (it refused the request)" if e.code in (401, 403, 429) else "")
+    if isinstance(e, TimeoutError):
+        return "timed out"
+    if isinstance(e, URLError):
+        return "timed out" if isinstance(getattr(e, "reason", None), TimeoutError) else "could not connect"
+    if isinstance(e, FileNotFoundError):
+        return "no data was available"
+    if isinstance(e, ValueError):
+        return "the page's wording was not recognised"
+    return type(e).__name__
+
+
 def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_hours=6, radar_token=""):
     out = {"terror": None, "items": [], "weather": {}, "used": [], "issues": [], "checks": {}}
     items = []
     approved = tuple(src_doc.get("approved_hosts") or DEFAULT_APPROVED_HOSTS)
+    terror_failures = []
     for s in src_doc["sources"]:
         if not host_approved(s.get("url", ""), approved):
             print(f"warning: skipped '{s.get('name', s.get('id'))}': its web address is not on the approved official list. If it really is an official, "
                   f"open-licensed source, add its domain to \"approved_hosts\" in official_sources.json.", file=sys.stderr)
             out["issues"].append(f"{s.get('name', s.get('id'))} (not on the approved official list)")
             continue
+        if s["kind"] == "mi5_level" and out["terror"]:
+            continue                       # the first source that reads (MI5) wins; the GOV.UK page is only a back-up
         try:
             data = fetch(s["url"], s["id"], fixtures)
             if s["kind"] == "mi5_level":
@@ -862,6 +884,7 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
                     out.setdefault("pending_keys", set()).add(pending)
                 if ok:
                     out["terror"] = found
+                    out["terror_source"] = "MI5" if "mi5" in s["url"] else "GOV.UK"
                 else:
                     print(f"warning: MI5 page read as {found} but the last accepted level is {last_terror}. Ignored for now. Check the page by hand.", file=sys.stderr)
                     out["issues"].append("MI5 threat level (reading looked wrong or is a large jump still being confirmed, so the last accepted level is shown)")
@@ -881,8 +904,13 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
                                   "date": iso(it["published"]), "url": it["url"], "background": age > timedelta(days=14)})
             out["used"].append({"name": s["name"], "licence": s["licence"], "url": s["url"].split("?")[0]})
         except Exception as e:
-            out["issues"].append(s["name"])
-            print(f"warning: {s['name']}: {e}", file=sys.stderr)
+            if s["kind"] == "mi5_level":
+                terror_failures.append(f"{s['name']} ({why(e)})")
+            else:
+                out["issues"].append(f"{s['name']} ({why(e)})")
+            print(f"warning: {s['name']}: {why(e)} [{type(e).__name__}: {e}]", file=sys.stderr)
+    if terror_failures:
+        out["issues"].extend(terror_failures if not out["terror"] else [f + ", so GOV.UK's own terrorism page was used instead" for f in terror_failures])
     items.sort(key=lambda i: i["date"], reverse=True)
     out["all_items"] = items
     out["items"] = items[:14]
@@ -1030,6 +1058,11 @@ def main():
         if new_map != changes_map:      # something moved this run: rebuild so the wording mentions it straight away
             changes_map = new_map
             feed = make(changes_map)
+    feed["build"] = {"code": CODE_VERSION, "commit": (os.environ.get("GITHUB_SHA") or "local")[:7], "run": os.environ.get("GITHUB_RUN_NUMBER", ""),
+                     "signals_read": len(signals), "sources_read": len(official.get("used", [])), "terror_level_read": bool(official.get("terror")),
+                     "terror_source": official.get("terror_source", "")}
+    print(f"build: code {CODE_VERSION}, commit {feed['build']['commit']}, written signals read: {len(signals)}, "
+          f"sources read: {feed['build']['sources_read']}, terrorism level read live: {feed['build']['terror_level_read']}")
     all_history = list(history)
     if not a.editorial_only:
         new_entries = level_changes(state.get("levels_last"), feed["areas"], feed["overall"]["level"], now)
