@@ -18,6 +18,7 @@ which sets a floor for the terrorism area.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html as htmllib
 import json
 import os
@@ -34,7 +35,7 @@ except Exception:  # pragma: no cover
     import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODE_VERSION = "2026-09-21-diagnostics"
+CODE_VERSION = "2026-09-21-pack-15"
 UA = "Mozilla/5.0 (compatible; WaryBot/1.0; non-commercial; +https://wary.org.uk)"
 AREAS = ["energy", "cyber", "comms", "security", "military", "supply"]
 AREA_NAMES = {"energy": "Power, gas and fuel", "cyber": "Cyber attacks on services", "comms": "Cables, GPS and phone networks",
@@ -53,6 +54,11 @@ CALM = re.compile(r"consultation|appoint|obituary|award|honour|anniversary|vacan
 
 
 def now_utc():
+    forced = os.environ.get("WARY_NOW")      # for tests only: pretend it is this time (for example 2026-10-03T12:00:00Z)
+    if forced:
+        d = parse_dt(forced)
+        if d:
+            return d
     return datetime.now(timezone.utc)
 
 
@@ -167,7 +173,16 @@ def read_terror_level(data):
     raise ValueError("no UK threat level found on the page")
 
 
-def accept_terror(found, contextual, last_known, state=None, now=None, hold_hours=6):
+NI_LEVEL = re.compile(r"(?i)\bthreat to Northern Ireland from Northern Ireland[- ]related terrorism\b[^.]{0,80}?\bis\s+(" + LEVEL_WORDS + r")\b")
+
+
+def read_ni_level(data):
+    """The separate Northern Ireland-related terrorism level, or None if the page does not state it. Never raises."""
+    m = NI_LEVEL.search(clean(data.decode("utf-8", "replace")))
+    return m.group(1).upper() if m else None
+
+
+def accept_terror(found, contextual, last_known, state=None, now=None, hold_hours=6, key_prefix="terror-jump"):
     """Returns (accepted, pending_key). A page redesign must never be able to invent a false level.
     - A loose match (not tied to 'national threat level') can only CONFIRM the last accepted level.
     - A clear statement within one step of the last accepted level is accepted.
@@ -178,7 +193,7 @@ def accept_terror(found, contextual, last_known, state=None, now=None, hold_hour
         return found == last_known, None
     if abs(TERROR_ORDER.index(found) - TERROR_ORDER.index(last_known)) <= 1:
         return True, None
-    key = f"terror-jump:{found}"
+    key = f"{key_prefix}:{found}"
     return (bool(now) and held(state, key, now, hold_hours)), key
 
 
@@ -208,7 +223,7 @@ def check_grid(fixtures, now):
     try:
         j = json.loads(fetch(GRID_URL, "grid", fixtures).decode("utf-8", "replace"))
         rows = j.get("data", j) if isinstance(j, dict) else j
-        recent, unread = [], 0
+        recent, unread, emergency_at = [], 0, None
         for r in rows or []:
             if not isinstance(r, dict):
                 continue
@@ -218,9 +233,11 @@ def check_grid(fixtures, now):
                 unread += 1
             elif now - when <= timedelta(hours=24):
                 recent.append(text)
+                if re.search(r"demand control|load shedding|blackout|national electricity transmission system emergency", text, re.I):
+                    emergency_at = max(emergency_at or when, when)
         if recent:
-            if any(re.search(r"demand control|load shedding|blackout|national electricity transmission system emergency", t, re.I) for t in recent):
-                return dict(base, state="alert", text="Emergency measures mentioned", detail="Check National Energy System Operator updates now.")
+            if emergency_at:
+                return dict(base, state="alert", text="Emergency measures mentioned", detail="Check National Energy System Operator updates now.", at=iso(emergency_at))
             return dict(base, state="notice", text="Market notice issued", detail="These are routine most winters and do not mean supplies are at risk.")
         if unread:
             return dict(base, state="unknown", text="Could not read notice times", detail="Check the source directly.")
@@ -297,15 +314,19 @@ def check_internet(fixtures, now, token):
 
 
 def check_terror(official, baseline, now):
-    lvl = official.get("terror") or baseline["official_terror_baseline"]["level"]
-    live = bool(official.get("terror"))
+    """The tile always says which level it shows AND whether it was confirmed live on this run. A last-known level is never described as live."""
+    lvl = official.get("terror_effective") or official.get("terror") or baseline["official_terror_baseline"]["level"]
+    live = bool(official.get("terror_live", bool(official.get("terror"))))
     state = {"LOW": "clear", "MODERATE": "clear", "SUBSTANTIAL": "notice", "SEVERE": "notice", "CRITICAL": "alert"}.get(lvl, "unknown")
     detail = TERROR_TEXT.get(lvl, "")
+    src = official.get("terror_source") or official.get("terror_last_source") or "MI5"
     if not live:
-        detail += f" Last confirmed {baseline['official_terror_baseline']['as_of']}. The live check is unavailable."
-    return {"id": "terror", "name": "Terrorism threat level", "state": state, "text": lvl, "detail": detail.strip(),
-            "url": "https://www.gov.uk/terrorism-national-emergency" if official.get("terror_source") == "GOV.UK" else "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels",
-            "source": "GOV.UK" if official.get("terror_source") == "GOV.UK" else "MI5", "checked": iso(now)}
+        when = parse_dt(official.get("terror_at")) if official.get("terror_at") else None
+        seen = f"Last confirmed {fmt_day(when)} {when.strftime('%H:%M')}." if when else f"Last confirmed by the editor on {baseline['official_terror_baseline']['as_of']}."
+        detail += f" Not confirmed live just now. {seen} The live check is unavailable, so this level is kept until it can be read again."
+    return {"id": "terror", "name": "Terrorism threat level", "state": state, "text": lvl if live else f"{lvl} (not confirmed live)", "detail": detail.strip(),
+            "url": "https://www.gov.uk/terrorism-national-emergency" if src == "GOV.UK" else "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels",
+            "source": "GOV.UK" if src == "GOV.UK" else "MI5", "checked": iso(now)}
 
 
 def http_status(url):
@@ -465,8 +486,9 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
     for a in AREAS:
         b = baseline["areas"][a]
         bump, why, _url = official.get("bumps", {}).get(a, (1, "", ""))
-        terror = official.get("terror")
-        follows = a == "security" and terror in tmap   # the terrorism area follows the official MI5 level, up and down
+        terror = official.get("terror_effective") or official.get("terror")
+        t_live = bool(official.get("terror_live", bool(official.get("terror"))))
+        follows = a == "security" and terror in tmap   # the terrorism area follows the official level, up and down (last confirmed level if a source is down)
         lowered = False
         if follows:
             base_eff = tmap[terror]
@@ -484,7 +506,9 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
         ev_noted = bool(ev and ev["count"] >= 1 and not ev_active and not follows)
         bump_active = bump > base_eff
         # --- one-line status ---
-        if follows:
+        if follows and not t_live:
+            status = f"The official UK terrorism threat level was last confirmed as {terror}. {TERROR_TEXT[terror]} The live check is not available just now."
+        elif follows:
             status = f"The official UK terrorism threat level is {terror}. {TERROR_TEXT[terror]}"
         elif a == "security":
             status = "The official MI5 threat level could not be read just now."
@@ -502,8 +526,11 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
             status = b["status"]
         # --- what is happening: short paragraphs, all from data ---
         pos = []
-        if follows:
-            pos.append(f"The official UK threat level is {terror} ({TERROR_TEXT[terror].lower().rstrip('.')}). It is read from MI5's website about every 30 minutes and this area follows it up and down.")
+        if follows and not t_live:
+            pos.append(f"The last confirmed official UK threat level is {terror} ({TERROR_TEXT[terror].lower().rstrip('.')}). It could not be read just now, so this area keeps that level "
+                       f"until it can be read again. It is never lowered simply because the source is unavailable.")
+        elif follows:
+            pos.append(f"The official UK threat level is {terror} ({TERROR_TEXT[terror].lower().rstrip('.')}). It is read from {'GOV.UK' + chr(39) + 's terrorism page, which repeats MI5' + chr(39) + 's level,' if official.get('terror_source') == 'GOV.UK' else 'MI5' + chr(39) + 's website'} about every 30 minutes and this area follows it up and down.")
         elif a == "security":
             pos.append("The live MI5 reading was not available, so this is the last level we could confirm.")
         if ev_active:
@@ -550,7 +577,7 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
         levels[a] = lvl
         areas.append({"id": a, "name": AREA_NAMES[a], "level": lvl, "baseline": b["level"], "live_level": bump, "status": status,
                       "reason": reason, "baseline_as_of": None if text_stale else b["as_of"], "lowered": lowered, "basis": basis,
-                      "evidence": [{"title": e["title"], "source": e["source"], "date": e["date"], "url": e["url"]} for e in (ev["items"] if ev and not follows else [])]})
+                      "evidence": [{"title": e["title"], "source": e["source"], "date": e["date"], "url": e["url"], "summary": e.get("summary", "")} for e in (ev["items"] if ev and not follows else [])]})
     top = max(levels.values())
     sigs = []
     for s_ in signals:  # low-touch: older than 45 days becomes "Earlier background"; past the max age (or a dead link) it disappears
@@ -572,9 +599,11 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
         "overall": {"level": top, "name": LEVEL_NAMES[top], "drivers": [a for a in AREAS if levels[a] == top]},
         "areas": areas, "signals": sigs, "notice": live_notice,
         "weather": official.get("weather", {}),
-        "official": {"terror_level": official.get("terror") or baseline["official_terror_baseline"]["level"],
-                     "live_checked": bool(official.get("terror")), "as_of": baseline["official_terror_baseline"]["as_of"],
-                     "ni_level": baseline.get("official_ni_baseline", {}).get("level", "")},
+        "official": {"terror_level": official.get("terror_effective") or official.get("terror") or baseline["official_terror_baseline"]["level"],
+                     "live_checked": bool(official.get("terror_live", bool(official.get("terror")))), "as_of": baseline["official_terror_baseline"]["as_of"],
+                     "confirmed_at": official.get("terror_at"),
+                     "ni_level": official.get("ni_effective") or baseline.get("official_ni_baseline", {}).get("level", ""),
+                     "ni_live": bool(official.get("ni_live", False)), "ni_confirmed_at": official.get("ni_at") or baseline.get("official_ni_baseline", {}).get("as_of")},
         "sources_used": official.get("used", []), "data_issues": official.get("issues", []),
         "checks": build_checks(official, baseline, now),
         "press": press or [],
@@ -585,24 +614,128 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
     }
 
 
-CABLE_DAMAGE = re.compile(r"(?=.*(?:undersea|subsea|submarine|seabed))(?=.*(?:cable|pipeline|infrastructure))(?=.*(?:damag|sever|\bcut\b|sabotag|incident|attack|break))", re.I)
-ATTACK_ON_UK = re.compile(r"attack (?:on|against) (?:the )?(?:UK|United Kingdom|Britain)|(?:UK|United Kingdom|Britain)(?: is| has been)? under attack|attack on British soil", re.I)
+STATE_SCHEMA = 2
+
+
+def state_checksum(d):
+    body = {k: v for k, v in d.items() if k != "checksum"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()[:20]
+
+
+def seal_state(d, now):
+    d = {k: v for k, v in d.items() if k not in ("checksum",)}
+    d["schema"], d["saved_at"] = STATE_SCHEMA, iso(now)
+    d["checksum"] = state_checksum(d)
+    return d
+
+
+def valid_state(d):
+    """Sealed (current format) states must match their checksum. A tampered, truncated or wrong-version state is treated as missing."""
+    return bool(isinstance(d, dict) and d.get("schema") == STATE_SCHEMA and parse_dt(d.get("saved_at")) and d.get("checksum") == state_checksum(d)
+                and isinstance(d.get("first_seen"), dict))
+
+
+def load_state_file(path):
+    """The cache copy. Corrupt or unreadable is NEVER fatal: it simply counts as no memory (returns None)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.loads(f.read())
+    except (OSError, ValueError):
+        return None
+    if valid_state(d):
+        return d
+    if isinstance(d, dict) and d.get("schema") is None and isinstance(d.get("first_seen"), dict):
+        d = dict(d, saved_at=d.get("saved_at") or "1970-01-01T00:00:00Z")          # an older-format cache file: still usable, marked as such
+        d["_legacy"] = True
+        return d
+    return None
+
+
+def fetch_previous_state(site_url, fixtures, now):
+    """The site carries its own memory: the state file published beside feed.json by the previous run. Anything wrong with it means None."""
+    try:
+        if fixtures:
+            data = fetch("", "prev-state", fixtures)
+        elif site_url:
+            data = fetch(site_url.rstrip("/") + f"/state.json?nocache={int(now.timestamp())}", "prev-state", None)
+        else:
+            return None
+        d = json.loads(data.decode("utf-8", "replace"))
+        return d if valid_state(d) else None
+    except Exception:
+        return None
+
+
+def load_memory(cache_path, site_url, fixtures, now):
+    """(state, where_it_came_from). Prefers the newest valid copy of: the previous published state, then the cache. Nothing valid = cold start."""
+    site, cache = fetch_previous_state(site_url, fixtures, now), load_state_file(cache_path)
+    picks = [(parse_dt(x["saved_at"]), name, x) for name, x in (("previous site state", site), ("cache", cache)) if x]
+    if not picks:
+        return {"first_seen": {}}, "cold start"
+    _, name, st = max(picks, key=lambda t: t[0])
+    return st, name + (" (older format)" if st.get("_legacy") else "")
+
+
+PRERENDER = re.compile(r"<!--PRERENDER-->.*?<!--/PRERENDER-->", re.S)
+
+
+def prerender_html(feed):
+    """A static, HTML-escaped copy of the essentials for anyone without JavaScript. Every value is escaped: nothing from a feed is trusted as markup."""
+    e = htmllib.escape
+    when = parse_dt(feed.get("generated_at"))
+    rows = "".join(f"<li><strong>{e(a['name'])}:</strong> {e(LEVEL_NAMES[a['level']])}. {e(a['status'])}</li>" for a in sorted(feed["areas"], key=lambda x: -x["level"]))
+    return ("<!--PRERENDER-->"
+            f"<strong>Household level: {e(feed['overall']['name'])} ({feed['overall']['level']} of 5).</strong> "
+            f"Last built {e(when.strftime('%d %b %Y, %H:%M') + ' UTC') if when else 'unknown'}. This is a plain copy: switch JavaScript on for the full page, household tailoring and live checks."
+            f"<ul>{rows}</ul>"
+            "If you think something is happening now, check GOV.UK Emergency Alerts (gov.uk/alerts) and BBC News (bbc.co.uk/news). "
+            "For official advice, search GOV.UK for &ldquo;Prepare for emergencies&rdquo;."
+            "<!--/PRERENDER-->")
+
+
+def prerender_into(index_path, feed):
+    """Refreshes the block between the PRERENDER markers in the built index.html. Silently does nothing if the page has no markers."""
+    try:
+        with open(index_path, encoding="utf-8") as f:
+            html = f.read()
+        if not PRERENDER.search(html):
+            return False
+        with open(index_path, "w", encoding="utf-8") as f:
+            f.write(PRERENDER.sub(lambda m: prerender_html(feed), html, count=1))
+        return True
+    except OSError:
+        return False
+
+
+def write_json_atomic(path, obj):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=1, ensure_ascii=False)
+    os.replace(tmp, path)          # a half-written file can never replace a good one
 
 
 def load_state(path):
-    return load_json(path, {"first_seen": {}}) or {"first_seen": {}}
+    """Kept for older callers. Never raises."""
+    return load_state_file(path) or {"first_seen": {}}
 
 
-def update_state(state, active_keys, now, terror_last=None, links=None, evidence=None, levels_last=None, auto_history=None, area_changes=None):
-    """Remember when each trigger was FIRST seen. A trigger that disappears is forgotten, so the timer restarts if it returns.
-    Also remembers the last accepted MI5 level, so the site can follow it up and down over the months."""
+def update_state(state, active_keys, now, terror_last=None, links=None, evidence=None, levels_last=None, auto_history=None, area_changes=None,
+                 terror_last_at=None, terror_last_source=None, ni_last=None, ni_last_at=None, triggers=None):
+    """Remember when each level-5 trigger was FIRST seen (it is kept only while the trigger is still active, including a last-known CRITICAL),
+    the last ACCEPTED terrorism and Northern Ireland levels and when they were last confirmed live, the evidence store, and accepted triggers."""
     first = state.get("first_seen", {})
-    return {"first_seen": {k: first.get(k) or iso(now) for k in active_keys}, "terror_last": terror_last or state.get("terror_last"),
+    return {"first_seen": {k: first.get(k) or iso(now) for k in active_keys},
+            "terror_last": terror_last or state.get("terror_last"),
+            "terror_last_at": (terror_last_at if terror_last else None) or state.get("terror_last_at"),
+            "terror_last_source": (terror_last_source if terror_last else None) or state.get("terror_last_source"),
+            "ni_last": ni_last or state.get("ni_last"), "ni_last_at": (ni_last_at if ni_last else None) or state.get("ni_last_at"),
             "links": links if links is not None else state.get("links", {}),
             "evidence": evidence if evidence is not None else state.get("evidence", []),
             "levels_last": levels_last if levels_last is not None else state.get("levels_last"),
             "auto_history": auto_history if auto_history is not None else state.get("auto_history", []),
-            "area_changes": area_changes if area_changes is not None else state.get("area_changes", {})}
+            "area_changes": area_changes if area_changes is not None else state.get("area_changes", {}),
+            "triggers": triggers if triggers is not None else state.get("triggers", {})}
 
 
 def held(state, key, now, hours):
@@ -662,7 +795,8 @@ def compute_evidence(items, state, now, window_days=30):
     for i in items:
         areas = evidence_areas(i)
         if areas:
-            store[i["id"]] = {"id": i["id"], "date": i["date"], "title": i["title"], "source": i["source"], "url": i["url"], "areas": sorted(areas)}
+            store[i["id"]] = {"id": i["id"], "date": i["date"], "title": i["title"], "source": i["source"], "url": i["url"], "areas": sorted(areas),
+                         "summary": nice_summary(i["title"], i.get("summary"), 300)}
     cutoff = now - timedelta(days=window_days)
     store = {k: v for k, v in store.items() if (parse_dt(v["date"]) or cutoff) >= cutoff}
     by_area = {}
@@ -683,10 +817,10 @@ QUIET_STATUS = {
 }
 WATCH = {
     "energy": ["the energy department's announcements", "the grid operator's system warnings", "space weather"],
-    "cyber": ["the National Cyber Security Centre", "the Cabinet Office", "US CISA advisories"],
+    "cyber": ["the National Cyber Security Centre", "the Cabinet Office", "the Department for Science, Innovation and Technology"],
     "comms": ["the Ministry of Defence", "the Department for Transport", "the Maritime and Coastguard Agency", "space weather"],
     "military": ["the Ministry of Defence", "the Foreign Office", "the Cabinet Office"],
-    "supply": ["the Department for Environment, Food and Rural Affairs", "the Drinking Water Inspectorate", "the Department for Transport"],
+    "supply": ["the Department for Environment, Food and Rural Affairs", "the Department for Transport", "the Maritime and Coastguard Agency"],
     "security": ["MI5's threat level", "the Home Office", "GOV.UK Emergency Alerts"],
 }
 
@@ -698,6 +832,21 @@ def fmt_day(v):
 
 def _join(names):
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def nice_summary(title, summary, max_len=240):
+    """The source's OWN short description of an item (GOV.UK and NCSC feeds carry one, reusable under the Open Government Licence).
+    Skipped if it is empty, too short to say anything, or just repeats the headline. Cut at a sentence end where possible."""
+    s = re.sub(r"\s+", " ", (summary or "")).strip()
+    t = (title or "").strip().lower()
+    if len(s) < 40 or (t and (s.lower() == t or s.lower().startswith(t))):
+        return ""
+    if len(s) > max_len:
+        cut = s[:max_len]
+        end = max(cut.rfind(". "), cut.rfind("? "), cut.rfind("! "))
+        cut = cut[:end + 1] if end > 80 else cut[:cut.rfind(" ")].rstrip(",;:") + "\u2026"
+        s = cut
+    return s
 
 
 def live_status(area, checks):
@@ -742,6 +891,9 @@ def indicator_sentences(area, checks, items):
         i = latest("cyber")
         if i:
             out.append(f"The latest official cyber item was published on {fmt_day(i['date'])}: {i['title']}.")
+            sm = nice_summary(i["title"], i.get("summary"))
+            if sm:
+                out.append(f"Its own summary: \u201C{sm}\u201D")
     elif area == "comms":
         n = c.get("internet")
         if n and n["state"] == "clear":
@@ -755,10 +907,16 @@ def indicator_sentences(area, checks, items):
         i = latest("military")
         if i:
             out.append(f"The latest official item on this area was published on {fmt_day(i['date'])}: {i['title']}.")
+            sm = nice_summary(i["title"], i.get("summary"))
+            if sm:
+                out.append(f"Its own summary: \u201C{sm}\u201D")
     elif area == "supply":
         i = latest("supply")
         if i:
             out.append(f"The latest official item on this area was published on {fmt_day(i['date'])}: {i['title']}.")
+            sm = nice_summary(i["title"], i.get("summary"))
+            if sm:
+                out.append(f"Its own summary: \u201C{sm}\u201D")
     elif area == "security":
         al = c.get("alerts")
         if al and al["state"] == "clear":
@@ -800,45 +958,120 @@ def level_changes(prev, areas, overall, now):
     return [{"date": now.strftime("%Y-%m-%d"), "level": overall, "title": title, "text": text[:400], "auto": True}]
 
 
-def auto_rules(items, checks, now, terror=None, state=None, hold_hours=6):
-    """Low-touch mode. Only unambiguous OFFICIAL triggers act on their own, and each lasts 72 hours from the source's date.
-    Nothing from the press can appear here, and nothing can set level 5.
-    Returns (bumps {area: (level, why, url)}, notices [{text, url}])."""
-    bumps, notices, active = {}, [], set()
-    cobr_seen, attack_items = False, []
+# ---- automatic HIGH triggers: strict, official-only, and DURABLE for their whole defined life ----
+NAT_SIG = re.compile(r"nationally significant", re.I)
+CYBER_INCIDENT = re.compile(r"\b(incidents?|attacks?|outages?|disruption|breach(?:es)?|compromise[sd]?)\b", re.I)
+CYBER_IMPACT = re.compile(r"\b(hospitals?|NHS|health(?:care)? services?|essential services|critical national infrastructure|CNI|energy|electricity|gas supply|water|"
+                          r"transport|rail|airports?|ports?|banks?|banking|payments?|public services|councils?|schools|emergency services|telecom\w*|the public|households?)\b", re.I)
+CYBER_RETRO = re.compile(r"\b(annual (?:review|report)|handled|handles|statistics|figures|data shows?|in the year|last year|past year|previous year|year to|over the past|"
+                         r"so far this year|review of|guidance|advice for|lessons|exercise|consultation|strategy|framework|speech|lecture|blog|trends?)\b", re.I)
+CABLE_DAMAGE = re.compile(r"(?=.*(?:undersea|subsea|submarine|seabed))(?=.*(?:cable|pipeline|infrastructure))(?=.*(?:damag|sever|\bcut\b|sabotag|incident|attack|break))", re.I)
+# A real UK connection: the bare word "UK" (a UK statement about a Baltic cable) is NOT enough.
+UK_CABLE_LINK = re.compile(r"\bUK waters\b|\bBritish waters\b|\bUK territorial\b|\b(?:serving|connecting|linking|landing in|landing at|to|from|off|around|near) the (?:UK|United Kingdom|Britain)\b|"
+                           r"\bUK[- ](?:owned|based|connected|linked)\b|\b(?:Shetland|Orkney|Hebrides|Isle of Man|Channel Islands|Irish Sea|Bristol Channel)\b|"
+                           r"\b(?:Scottish|Welsh|Cornish|English) (?:coast|waters)\b", re.I)
+ATTACK_ON_UK = re.compile(r"attack (?:on|against) (?:the )?(?:UK|United Kingdom|Britain)|(?:UK|United Kingdom|Britain)(?: is| has been)? under attack|attack on British soil", re.I)
+
+
+def cyber_high(item):
+    """NCSC's 'nationally significant' is a formal category, not proof of household impact. HIGH needs a CURRENT incident with an
+    essential-service or public impact, UK relevance, and no report/statistics/guidance wording."""
+    title = item.get("title", "")
+    text = f"{title} {item.get('summary', '')}"
+    return bool("cyber" in item.get("cats", []) and NAT_SIG.search(title) and CYBER_INCIDENT.search(title) and CYBER_IMPACT.search(text)
+                and not CYBER_RETRO.search(title) and ("NCSC" in item.get("source", "") or UK_CONTEXT.search(text)))
+
+
+def cable_high(item):
+    title = item.get("title", "")
+    return bool(CABLE_DAMAGE.search(title) and UK_CABLE_LINK.search(f"{title} {item.get('summary', '')}"))
+
+
+def _trigger(rule, areas, level, why, url, source, published, expires, now):
+    return {"id": f"{rule}:{url or why}", "rule": rule, "areas": list(areas), "level": level, "why": why, "url": url, "source": source,
+            "published": iso(published), "accepted": iso(now), "last_seen": iso(now), "expires": iso(expires)}
+
+
+def detect_triggers(items, checks, now):
+    """Triggers visible in THIS run's data. Pure: it remembers nothing. See apply_triggers for the memory."""
+    found, attack_items, cobr = [], [], False
     for i in items:
         when = parse_dt(i["date"])
         if not when or now - when > timedelta(hours=72):
             continue
-        if re.search(r"nationally significant", i["title"], re.I) and "cyber" in i["cats"]:
-            bumps["cyber"] = (4, f"{i['source']}: {i['title']}", i["url"])
+        why = f"{i['source']}: {i['title']}"
+        if cyber_high(i):
+            found.append(_trigger("cyber-significant", ["cyber"], 4, why, i["url"], i["source"], when, when + timedelta(hours=72), now))
+        if cable_high(i):
+            found.append(_trigger("cable-damage", ["comms"], 4, why, i["url"], i["source"], when, when + timedelta(hours=72), now))
         if re.search(r"\bCOBR\b", i["title"]):
-            cobr_seen = True
-            notices.append({"text": f"The government has convened COBR, its emergency committee. {i['source']}: {i['title']}", "url": i["url"]})
-        if CABLE_DAMAGE.search(i["title"]):
-            bumps["comms"] = (4, f"{i['source']}: {i['title']}", i["url"])
+            cobr = True
+            found.append(_trigger("cobr-notice", [], 0, f"The government has convened COBR, its emergency committee. {why}", i["url"], i["source"], when, when + timedelta(hours=72), now))
         if ATTACK_ON_UK.search(i["title"]) and now - when <= timedelta(hours=24):
-            attack_items.append(i)
+            attack_items.append((when, i))
     grid = (checks or {}).get("grid", {})
     if grid.get("state") == "alert":
-        bumps["energy"] = (4, "the grid operator's system warning mentions demand control or load shedding", "https://bmrs.elexon.co.uk/")
+        at = parse_dt(grid.get("at")) or now
+        found.append(_trigger("grid-alert", ["energy"], 4, "the grid operator's system warning mentions demand control or load shedding", "https://bmrs.elexon.co.uk/",
+                              "Elexon BMRS", at, at + timedelta(hours=72), now))
+    if cobr and attack_items:      # two separate official statements: an attack on the UK named AND COBR convened
+        when, top = max(attack_items, key=lambda x: x[0])
+        areas = [a for a in ("security", "military") if a in top["cats"]] or ["military"]
+        found.append(_trigger("gov-attack", areas, 4, f"{top['source']}: {top['title']}, with COBR convened", top["url"], top["source"], when, when + timedelta(hours=24), now))
+    return found
+
+
+def apply_triggers(detected, stored, now):
+    """The memory. An accepted trigger stays active until ITS OWN expiry, even if a later fetch fails. It is never extended by being
+    seen again, and never kept past its expiry."""
+    active = {}
+    for tid, t in (stored or {}).items():
+        exp = parse_dt(t.get("expires"))
+        if exp and exp > now and isinstance(t.get("areas"), list):
+            active[tid] = t
+    for t in detected:
+        if t["id"] in active:
+            active[t["id"]] = dict(active[t["id"]], last_seen=iso(now))       # seen again: recorded, but the expiry is NOT extended
+        else:
+            active[t["id"]] = t
+    return active
+
+
+def triggers_to_bumps(active, terror, state, now, hold_hours=6, terror_fresh=True):
+    """Turn active triggers (plus a CRITICAL terrorism level, live or last-known) into per-area levels. Level 5 needs the signal to have HELD."""
+    bumps, notices, keys = {}, [], set()
+    for t in active.values():
+        if t["rule"] == "cobr-notice":
+            notices.append({"text": t["why"], "url": t["url"]})
+        elif t["rule"] == "gov-attack":
+            keys.add("gov-attack")
+            seen = parse_dt(t.get("last_seen"))
+            lvl = 5 if (held(state, "gov-attack", now, hold_hours) and seen and now - seen <= timedelta(hours=3)) else 4    # Level 5 needs recent confirmation
+            for a in t["areas"]:
+                if lvl > bumps.get(a, (1,))[0]:
+                    bumps[a] = (lvl, t["why"] + (f" and holding for over {format(hold_hours, 'g')} hours" if lvl == 5 else ""), t["url"])
+        else:
+            for a in t["areas"]:
+                if t["level"] > bumps.get(a, (1,))[0]:
+                    bumps[a] = (t["level"], t["why"], t["url"])
     # Level 5 needs a clear official signal AND for it to hold. Until it has held it shows as High (4).
     if terror == "CRITICAL":
-        active.add("mi5-critical")
-        lvl = 5 if held(state, "mi5-critical", now, hold_hours) else 4
-        bumps["security"] = (lvl, f"the official terrorism threat level is CRITICAL (an attack is highly likely in the near future){' and has held for over ' + format(hold_hours, 'g') + ' hours' if lvl == 5 else ''}", "https://www.mi5.gov.uk/threats-and-advice/terrorism-threat-levels")
-    if cobr_seen and attack_items:  # two separate official statements: an attack on the UK named AND COBR convened
-        active.add("gov-attack")
-        lvl = 5 if held(state, "gov-attack", now, hold_hours) else 4
-        top = attack_items[0]
-        areas = [a for a in ("security", "military") if a in top["cats"]] or ["military"]
-        for a in areas:
-            if lvl > bumps.get(a, (1,))[0]:
-                bumps[a] = (lvl, f"{top['source']}: {top['title']}, with COBR convened{' and holding for over ' + format(hold_hours, 'g') + ' hours' if lvl == 5 else ''}", top["url"])
-    return bumps, notices, active
+        keys.add("mi5-critical")
+        # Level 5 is the strongest claim the site makes: it needs the signal to have held AND to have been confirmed live recently.
+        # If the source has been unreadable for a while the area stays High and says "last confirmed"; the timer keeps running meanwhile.
+        lvl = 5 if (held(state, "mi5-critical", now, hold_hours) and terror_fresh) else 4
+        bumps["security"] = (lvl, f"the official terrorism threat level is CRITICAL (an attack is highly likely in the near future){' and has held for over ' + format(hold_hours, 'g') + ' hours' if lvl == 5 else ''}",
+                             "https://www.gov.uk/terrorism-national-emergency")
+    return bumps, notices, keys
 
 
-DEFAULT_APPROVED_HOSTS = ("gov.uk", "cisa.gov")
+def auto_rules(items, checks, now, terror=None, state=None, hold_hours=6):
+    """Memory-free convenience wrapper (kept for tests and for clarity): what would this run's data alone trigger?
+    Returns (bumps {area: (level, why, url)}, notices [{text, url}], active_keys)."""
+    return triggers_to_bumps(apply_triggers(detect_triggers(items, checks, now), {}, now), terror, state, now, hold_hours)
+
+
+DEFAULT_APPROVED_HOSTS = ("gov.uk",)
 
 
 def host_approved(url, approved):
@@ -862,12 +1095,14 @@ def why(e):
     return type(e).__name__
 
 
-def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_hours=6, radar_token=""):
+def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_hours=6, radar_token="", last_ni=None):
     out = {"terror": None, "items": [], "weather": {}, "used": [], "issues": [], "checks": {}}
     items = []
     approved = tuple(src_doc.get("approved_hosts") or DEFAULT_APPROVED_HOSTS)
     terror_failures = []
-    for s in src_doc["sources"]:
+    trigger_items = []       # EVERY fresh headline, sorted into areas or not: a COBR or "attack on the UK" headline belongs to no keyword area
+    ordered = sorted(src_doc["sources"], key=lambda x: (0 if x.get("id") == "gov-terror" else 1) if x.get("kind") == "mi5_level" else 0)
+    for s in ordered:
         if not host_approved(s.get("url", ""), approved):
             print(f"warning: skipped '{s.get('name', s.get('id'))}': its web address is not on the approved official list. If it really is an official, "
                   f"open-licensed source, add its domain to \"approved_hosts\" in official_sources.json.", file=sys.stderr)
@@ -885,6 +1120,13 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
                 if ok:
                     out["terror"] = found
                     out["terror_source"] = "MI5" if "mi5" in s["url"] else "GOV.UK"
+                    ni = read_ni_level(data)
+                    if ni:
+                        ni_ok, ni_pending = accept_terror(ni, True, (state or {}).get("ni_last") or last_ni, state, now, hold_hours, "ni-jump")
+                        if ni_pending:
+                            out.setdefault("pending_keys", set()).add(ni_pending)
+                        if ni_ok:
+                            out["ni"] = ni
                 else:
                     print(f"warning: MI5 page read as {found} but the last accepted level is {last_terror}. Ignored for now. Check the page by hand.", file=sys.stderr)
                     out["issues"].append("MI5 threat level (reading looked wrong or is a large jump still being confirmed, so the last accepted level is shown)")
@@ -898,6 +1140,9 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
                     if not cats and s.get("default_area"):
                         cats = [s["default_area"]]
                     age = now - it["published"]
+                    if timedelta(hours=-6) <= age <= timedelta(hours=72):
+                        trigger_items.append({"id": "t-" + re.sub(r"\W+", "", it["url"])[-14:], "cats": cats[:3], "title": it["title"], "summary": it["summary"], "source": s["name"],
+                                              "date": iso(it["published"]), "url": it["url"], "background": False})
                     if not cats or CALM.search(it["title"]) or age > timedelta(days=30) or age < timedelta(hours=-6):
                         continue
                     items.append({"id": "o-" + re.sub(r"\W+", "", it["url"])[-14:], "cats": cats[:3], "title": it["title"], "summary": it["summary"], "source": s["name"],
@@ -910,7 +1155,8 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
                 out["issues"].append(f"{s['name']} ({why(e)})")
             print(f"warning: {s['name']}: {why(e)} [{type(e).__name__}: {e}]", file=sys.stderr)
     if terror_failures:
-        out["issues"].extend(terror_failures if not out["terror"] else [f + ", so GOV.UK's own terrorism page was used instead" for f in terror_failures])
+        used_txt = "MI5's own page" if out.get("terror_source") == "MI5" else "GOV.UK's terrorism page"
+        out["issues"].extend(terror_failures if not out["terror"] else [f + f", so {used_txt} was used instead" for f in terror_failures])
     items.sort(key=lambda i: i["date"], reverse=True)
     out["all_items"] = items
     out["items"] = items[:14]
@@ -929,7 +1175,23 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
     net = check_internet(fixtures, now, radar_token)
     if net:
         out["checks"]["internet"] = net
-    out["bumps"], out["auto_notices"], out["active_keys"] = auto_rules(items, out["checks"], now, out.get("terror"), state, hold_hours)
+    # The terrorism level actually used: read live now, else the last one we ACCEPTED (never an older editorial baseline just because a source
+    # failed), else, on a cold start, the editor's confirmed baseline. 'live' says whether it was confirmed on THIS run.
+    st = state or {}
+    if out["terror"]:
+        out.update(terror_effective=out["terror"], terror_live=True, terror_at=iso(now), terror_last_source=out.get("terror_source", ""))
+    elif st.get("terror_last"):
+        out.update(terror_effective=st["terror_last"], terror_live=False, terror_at=st.get("terror_last_at"), terror_last_source=st.get("terror_last_source", ""))
+    else:
+        out.update(terror_effective=last_terror, terror_live=False, terror_at=None, terror_last_source="")
+    if out.get("ni"):
+        out.update(ni_effective=out["ni"], ni_live=True, ni_at=iso(now))
+    else:
+        out.update(ni_effective=st.get("ni_last") or last_ni, ni_live=False, ni_at=st.get("ni_last_at"))
+    out["triggers"] = apply_triggers(detect_triggers(trigger_items, out["checks"], now), st.get("triggers"), now)
+    t_at = parse_dt(out.get("terror_at")) if out.get("terror_at") else None
+    fresh = bool(out.get("terror_live") or (t_at and now - t_at <= timedelta(hours=3)))
+    out["bumps"], out["auto_notices"], out["active_keys"] = triggers_to_bumps(out["triggers"], out.get("terror_effective"), st, now, hold_hours, fresh)
     out["active_keys"] = set(out["active_keys"]) | set(out.pop("pending_keys", set()))
     if out["checks"]["alerts"]["state"] != "unknown":
         out["used"].append({"name": "GOV.UK Emergency Alerts status", "licence": "OGL v3.0", "url": ALERTS_URL})
@@ -1025,14 +1287,16 @@ def main():
     if problems:
         print("Editorial files have problems. Nothing was published:\n  - " + "\n  - ".join(problems), file=sys.stderr)
         return 1
-    retired, state, links_state, ev_store, press = set(), {}, None, None, []
+    retired, state, links_state, ev_store, press, memory = set(), {}, None, None, [], "not used"
     if a.editorial_only:
         official = {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}
     else:
-        state = load_state(a.state)
+        state, memory = load_memory(a.state, cfg.get("site_url", ""), a.fixtures, now)
         official = gather_official(load_or_exit(os.path.join(ROOT, "official_sources.json")), a.fixtures, now,
                                    state.get("terror_last") or baseline["official_terror_baseline"]["level"], state, float(cfg_int(cfg.get("hold_hours"), 6)),
-                                   os.environ.get("CLOUDFLARE_API_TOKEN", ""))
+                                   os.environ.get("CLOUDFLARE_API_TOKEN", ""), baseline.get("official_ni_baseline", {}).get("level"))
+        if memory == "cold start":
+            official["issues"].append("Memory was reset: recent statements and timers are being rebuilt from the feeds, so some levels may read lower than usual for a while")
         ev_by_area, ev_store = compute_evidence(official.pop("all_items", []), state, now, cfg_int(cfg.get("evidence_window_days"), 30))
         official["evidence"] = ev_by_area
         links_state, retired = ({}, set())
@@ -1060,22 +1324,26 @@ def main():
             feed = make(changes_map)
     feed["build"] = {"code": CODE_VERSION, "commit": (os.environ.get("GITHUB_SHA") or "local")[:7], "run": os.environ.get("GITHUB_RUN_NUMBER", ""),
                      "signals_read": len(signals), "sources_read": len(official.get("used", [])), "terror_level_read": bool(official.get("terror")),
-                     "terror_source": official.get("terror_source", "")}
+                     "terror_source": official.get("terror_source", ""), "memory": memory}
     print(f"build: code {CODE_VERSION}, commit {feed['build']['commit']}, written signals read: {len(signals)}, "
-          f"sources read: {feed['build']['sources_read']}, terrorism level read live: {feed['build']['terror_level_read']}")
+          f"sources read: {feed['build']['sources_read']}, terrorism level read live: {feed['build']['terror_level_read']}, memory: {memory}")
     all_history = list(history)
     if not a.editorial_only:
         new_entries = level_changes(state.get("levels_last"), feed["areas"], feed["overall"]["level"], now)
         auto_hist = (new_entries + state.get("auto_history", []))[:60]
         all_history = list(history) + auto_hist
         feed["history"] = sorted(all_history, key=lambda e: e["date"], reverse=True)[:12]
-        os.makedirs(os.path.dirname(a.state), exist_ok=True)
-        with open(a.state, "w", encoding="utf-8") as f:
-            json.dump(update_state(state, official.get("active_keys", set()), now, official.get("terror"), links_state or None, ev_store,
-                                   {"overall": feed["overall"]["level"], "areas": {x["id"]: x["level"] for x in feed["areas"]}}, auto_hist, changes_map), f, indent=1)
+        new_state = seal_state(update_state(
+            state, official.get("active_keys", set()), now, official.get("terror"), links_state or None, ev_store,
+            {"overall": feed["overall"]["level"], "areas": {x["id"]: x["level"] for x in feed["areas"]}}, auto_hist, changes_map,
+            terror_last_at=iso(now), terror_last_source=official.get("terror_source", ""), ni_last=official.get("ni"), ni_last_at=iso(now),
+            triggers=official.get("triggers", {})), now)
+        write_json_atomic(a.state, new_state)                                              # the cache copy
+        write_json_atomic(os.path.join(os.path.dirname(a.out), "state.json"), new_state)  # published beside feed.json: the site carries its own memory
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as f:
         json.dump(feed, f, ensure_ascii=False, indent=1)
+    prerender_into(os.path.join(os.path.dirname(a.out), "index.html"), feed)
     with open(os.path.join(os.path.dirname(a.out), "history.xml"), "w", encoding="utf-8") as f:
         f.write(atom_feed(sorted(all_history, key=lambda e: e["date"], reverse=True), cfg, now))
     print(f"wrote {a.out}: level {feed['overall']['level']} ({feed['overall']['name']}), "
