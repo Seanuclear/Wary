@@ -7,6 +7,8 @@
 <meta name="description" content="{{DESCRIPTION}} No cookies, no ads, no tracking.">
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="48x48">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="referrer" content="no-referrer">
 <link rel="alternate" type="application/atom+xml" title="Changes to the level" href="history.xml">
@@ -48,7 +50,10 @@ p{margin:0 0 .8em}
 .mast{background:var(--hero-bg);color:var(--hero-fg);border-bottom:1px solid var(--hero-dim)}
 .mast .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:12px;padding-bottom:12px}
 .brand{display:flex;align-items:center;gap:12px;font:850 clamp(32px,5.5vw,40px)/1 var(--head);font-stretch:62%;letter-spacing:.01em}
-.brand svg{width:clamp(30px,5vw,38px);height:clamp(30px,5vw,38px);flex:none}
+.brand .logo{height:clamp(40px,7.4vw,56px);width:auto;flex:none;display:block}
+.logo .lg-s{stroke:currentColor}.logo .lg-f{fill:currentColor}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo .lg-grey{stroke:#868B90}:root:not([data-theme="light"]) .logo .lg-sky{stroke:#3E8FC4}}
+:root[data-theme="dark"] .logo .lg-grey{stroke:#868B90}:root[data-theme="dark"] .logo .lg-sky{stroke:#3E8FC4}
 .tagline{margin:5px 0 0;font:400 clamp(15px,2.6vw,17px)/1.2 var(--body);color:var(--hero-fg)}
 .brandwrap{min-width:0}
 .trust{margin:6px 0 0;font-size:13px;line-height:1.25;color:var(--hero-dim)}
@@ -356,8 +361,7 @@ footer p{max-width:50em;color:var(--hero-fg)}
   <div class="wrap">
     <div class="brandwrap">
       <div class="brand">
-        <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="2" y="18" width="4" height="10" fill="#8FCBEA"/><rect x="8" y="13" width="4" height="15" fill="#4FA3D6"/><rect x="14" y="8" width="4" height="20" fill="#F5B301"/><rect x="21" y="3.5" width="4" height="24.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-        <span>{{NAME}}</span>
+        <svg class="logo" viewBox="0 0 1119 390" role="img" aria-label="{{NAME}}" focusable="false"><g transform="translate(-14 -55)"><path d="M77.42 425.04A218 218 0 1 1 434.58 425.04" fill="none" class="lg-s" stroke-width="36" stroke-linecap="butt"/><path d="M117.56 396.93A169 169 0 1 1 394.44 396.93" fill="none" stroke="#F5B301" stroke-width="30" stroke-linecap="butt"/><path d="M151.97 372.84A127 127 0 1 1 360.03 372.84" fill="none" class="lg-grey" stroke="#B7B9BC" stroke-width="26" stroke-linecap="butt"/><path d="M181.46 352.20A91 91 0 1 1 330.54 352.20" fill="none" class="lg-sky" stroke="#8FCBEA" stroke-width="22" stroke-linecap="butt"/><path d="M182.00 348.98L256.00 288.00L290.04 316.05L290.04 303.24L312.98 303.24L312.98 334.95L330.00 348.98L330.00 440.44L182.00 440.44Z" class="lg-f"/></g><path transform="translate(530.0 327.5)" d="M205.60000000000002 -140.4 169.0 0.0H127.60000000000001L105.2 -92.4L82.0 0.0H40.6L5.0 -140.4H41.6L61.800000000000004 -38.2L86.80000000000001 -140.4H124.4L148.4 -38.2L168.8 -140.4Z M260.0 -113.2Q271.8 -113.2 280.70000000000005 -108.4Q289.6 -103.60000000000001 294.40000000000003 -95.80000000000001V-111.60000000000001H328.6V0.0H294.40000000000003V-15.8Q289.40000000000003 -8.0 280.5 -3.2Q271.6 1.6 259.8 1.6Q246.20000000000002 1.6 235.0 -5.500000000000001Q223.8 -12.600000000000001 217.3 -25.700000000000003Q210.8 -38.800000000000004 210.8 -56.0Q210.8 -73.2 217.3 -86.2Q223.8 -99.2 235.0 -106.2Q246.20000000000002 -113.2 260.0 -113.2ZM270.0 -83.4Q259.8 -83.4 252.70000000000002 -76.1Q245.60000000000002 -68.8 245.60000000000002 -56.0Q245.60000000000002 -43.2 252.70000000000002 -35.7Q259.8 -28.200000000000003 270.0 -28.200000000000003Q280.20000000000005 -28.200000000000003 287.30000000000007 -35.6Q294.40000000000003 -43.0 294.40000000000003 -55.800000000000004Q294.40000000000003 -68.60000000000001 287.30000000000007 -76.0Q280.20000000000005 -83.4 270.0 -83.4Z M423.40000000000003 -112.80000000000001V-76.60000000000001H414.0Q401.20000000000005 -76.60000000000001 394.80000000000007 -71.10000000000001Q388.40000000000003 -65.60000000000001 388.40000000000003 -51.800000000000004V0.0H354.2V-111.60000000000001H388.40000000000003V-93.0Q394.40000000000003 -102.2 403.40000000000003 -107.5Q412.40000000000003 -112.80000000000001 423.40000000000003 -112.80000000000001Z M560.6 -111.60000000000001 490.6 53.0H453.80000000000007L479.40000000000003 -3.8000000000000003L434.00000000000006 -111.60000000000001H472.20000000000005L498.00000000000006 -41.800000000000004L523.6 -111.60000000000001Z" class="lg-f"/></svg>
       </div>
       <p class="tagline">{{TAGLINE}}</p>
       <p class="trust">No cookies. No ads. No tracking. <a href="#about">Details</a></p>
