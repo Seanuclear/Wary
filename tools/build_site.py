@@ -248,7 +248,9 @@ def main():
         print("Editorial files have problems:\n  - " + "\n  - ".join(problems), file=sys.stderr)
         return 1
     history = (publish.load_or_exit(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
-    snap = publish.build_feed(baseline, signals, {}, {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}, publish.now_utc(), history)
+    # The saved offline copy has no live data. It shows the editor's last confirmed terrorism level, plainly marked as not confirmed live.
+    snap = publish.build_feed(baseline, signals, {}, {"terror": None, "terror_effective": baseline["official_terror_baseline"]["level"], "terror_live": False,
+                                                      "terror_at": None, "items": [], "weather": {}, "used": [], "issues": []}, publish.now_utc(), history)
     snap["mode"] = "snapshot"
     if a.preview:
         snap["banner"] = "This is a mock-up with sample data. The live site refreshes from official sources every 30 minutes."
@@ -309,6 +311,14 @@ def main():
                 f.write(fill(open(src, encoding="utf-8").read()))
         else:
             shutil.copy(src, dst)
+    # A security contact file (RFC 9116), only when there is a public contact address to point to. It is refreshed on every build.
+    if "@" in contact and site:
+        from datetime import timedelta
+        wk = os.path.join(out, ".well-known")
+        os.makedirs(wk, exist_ok=True)
+        expires = (publish.now_utc() + timedelta(days=180)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with open(os.path.join(wk, "security.txt"), "w", encoding="utf-8") as f:
+            f.write(f"Contact: mailto:{contact}\nExpires: {expires}\nPreferred-Languages: en\nCanonical: {site}/.well-known/security.txt\n")
     print("built site/ for", cfg["name"])
     return 0
 
