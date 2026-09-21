@@ -238,16 +238,16 @@ def main():
     ap.add_argument("--handsoff-preview", action="store_true", help="preview the fully automatic site: written signals cleared, BBC strip on (illustrative inputs, real rules)")
     ap.add_argument("--level-preview", action="store_true", help="add a bar that switches the page between all five levels (illustrative scenarios)")
     a = ap.parse_args()
-    cfg = publish.load_json(os.path.join(ROOT, "site.json"))
+    cfg = publish.load_or_exit(os.path.join(ROOT, "site.json"))
     if a.name:
         cfg["name"] = cfg["short_name"] = a.name
-    baseline = publish.load_json(os.path.join(ROOT, "editorial", "baseline.json"))
-    signals = publish.load_json(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
+    baseline = publish.load_or_exit(os.path.join(ROOT, "editorial", "baseline.json"))
+    signals = publish.load_or_exit(os.path.join(ROOT, "editorial", "signals.json"))["signals"]
     problems = publish.validate_editorial(signals, baseline)
     if problems:
         print("Editorial files have problems:\n  - " + "\n  - ".join(problems), file=sys.stderr)
         return 1
-    history = (publish.load_json(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
+    history = (publish.load_or_exit(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
     snap = publish.build_feed(baseline, signals, {}, {"terror": None, "items": [], "weather": {}, "used": [], "issues": []}, publish.now_utc(), history)
     snap["mode"] = "snapshot"
     if a.preview:
@@ -287,7 +287,7 @@ def main():
     preview_html = ""
     preview_data = ""
     if handsoff:
-        hist = (publish.load_json(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
+        hist = (publish.load_or_exit(os.path.join(ROOT, "editorial", "history.json"), {}) or {}).get("entries", [])
         preview_data = "<script>window.THW_PREVIEW=" + json.dumps({"feeds": handsoff_feeds(baseline, hist)}, ensure_ascii=False).replace("</", "<\\/") + ";</script>\n"
         preview_html = HANDSOFF_BAR
     elif a.level_preview:

@@ -1,1 +1,4 @@
-{"signals": []}
+{
+  "_readme": "OPTIONAL. Wary runs perfectly well with no written signals: it shows automatic official headlines instead. Add your own only if you want to. Each needs a link to the original report, a summary in your OWN words (never paste text from a news site), a 'tier' (1 official, 2 established press, 3 specialist), 'precision' ('day' or 'month') and areas from: energy, cyber, comms, security, military, supply. Signals retire by themselves if their link returns 404 or 410 on two separate daily checks, or after 365 days unless you add \"keep\": true.",
+  "signals": []
+}

@@ -94,11 +94,19 @@ def child_text(el, *names):
 
 
 def load_json(path, default=None):
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
+    if not os.path.exists(path):
         return default
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    try:
+        return json.loads(text)
+    except ValueError as first:
+        try:
+            obj = loads_lenient(text)
+        except ValueError:
+            raise first
+        print(f"note: {os.path.relpath(path, ROOT)} had a small typo (an extra or missing comma). It was read anyway. Please tidy it when you can.", file=sys.stderr)
+        return obj
 
 
 def fetch(url, source_id, fixtures, headers=None):
@@ -135,18 +143,26 @@ TERROR_ORDER = ["LOW", "MODERATE", "SUBSTANTIAL", "SEVERE", "CRITICAL"]
 LEVEL_WORDS = "LOW|MODERATE|SUBSTANTIAL|SEVERE|CRITICAL"
 
 
+UK_LEVEL = re.compile(r"(?i)\bthreat to the (?:UK|United Kingdom)\b[^.]{0,240}?\bis\s+(" + LEVEL_WORDS + r")\b")
+OLD_LEVEL = re.compile(r"(?i)national (?:terrorism )?threat level[^.]{0,120}?\b(" + LEVEL_WORDS + r")\b")
+
+
 def read_terror_level(data):
-    """Returns (level, contextual). 'contextual' means the word sat right after 'national threat level'.
+    """Returns (level, contextual). 'contextual' means the level sat in a clear sentence about the UK's threat level.
+    MI5's page currently says: 'The threat to the UK (England, Wales, Scotland and Northern Ireland) from all forms of terrorism is SEVERE.'
+    (and a separate line for Northern Ireland-related terrorism, which is NOT the national level).
     A loose match (first level word on the page) is only ever used to CONFIRM the last known level."""
     text = clean(data.decode("utf-8", "replace"))
-    m = re.search(r"(?i:national (?:terrorism )?threat level)[^.]{0,120}?\b(" + LEVEL_WORDS + r")\b", text)
-    if m:
-        return m.group(1), True
+    for rx in (UK_LEVEL, OLD_LEVEL):
+        m = rx.search(text)
+        if m:
+            return m.group(1).upper(), True
     for m in re.finditer(r"\b(" + LEVEL_WORDS + r")\b", text):
-        if "northern ireland" in text[max(0, m.start() - 140): m.start()].lower():
-            continue
+        sentence = text[text.rfind(".", 0, m.start()) + 1: m.start()].lower()
+        if re.match(r"\s*(?:the )?threat to northern ireland", sentence) or "northern ireland-related terrorism" in sentence:
+            continue                     # the Northern Ireland-specific line is not the national level
         return m.group(1), False
-    raise ValueError("no national threat level found on the page")
+    raise ValueError("no UK threat level found on the page")
 
 
 def accept_terror(found, contextual, last_known, state=None, now=None, hold_hours=6):
@@ -900,6 +916,59 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
     return out
 
 
+def _mask_strings(text):
+    """Swap every string literal for a placeholder so punctuation fixes cannot touch text inside quotes."""
+    out, strings, i, n = [], [], 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            strings.append(text[i:j + 1])
+            out.append(f'"\u00a7{len(strings) - 1}\u00a7"')
+            i = j + 1
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out), strings
+
+
+def loads_lenient(text):
+    """Forgive the mistakes people make when editing JSON by hand: a comma before a closing bracket, a missing comma at the
+    end of a line, and Python's True/False/None. Anything else still raises ValueError."""
+    masked, strings = _mask_strings(text)
+    masked = re.sub(r"\bTrue\b", "true", masked)
+    masked = re.sub(r"\bFalse\b", "false", masked)
+    masked = re.sub(r"\bNone\b", "null", masked)
+    masked = re.sub(r",(\s*[}\]])", r"\1", masked)                                             # trailing comma
+    masked = re.sub(r'("\u00a7\d+\u00a7"|-?\d+(?:\.\d+)?|true|false|null|\}|\])([ \t]*\r?\n\s*)(?=")', r"\1,\2", masked)   # missing comma
+    for i, lit in enumerate(strings):
+        masked = masked.replace(f'"\u00a7{i}\u00a7"', lit, 1)
+    return json.loads(masked)
+
+
+def cfg_flag(value, default=False):
+    """A yes/no setting. Accepts true/false as a real value or as text ('true', 'false', 'yes', 'no', 'on', 'off')."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ("true", "yes", "on", "1"):
+            return True
+        if v in ("false", "no", "off", "0", ""):
+            return False
+        return default
+    return bool(value)
+
+
+def cfg_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def load_or_exit(path, default=None):
     """Read one of the owner's files. A typo gives a plain message and stops before anything is published, so the site keeps its last good version."""
     try:
@@ -934,25 +1003,25 @@ def main():
     else:
         state = load_state(a.state)
         official = gather_official(load_or_exit(os.path.join(ROOT, "official_sources.json")), a.fixtures, now,
-                                   state.get("terror_last") or baseline["official_terror_baseline"]["level"], state, float(cfg.get("hold_hours", 6)),
+                                   state.get("terror_last") or baseline["official_terror_baseline"]["level"], state, float(cfg_int(cfg.get("hold_hours"), 6)),
                                    os.environ.get("CLOUDFLARE_API_TOKEN", ""))
-        ev_by_area, ev_store = compute_evidence(official.pop("all_items", []), state, now, int(cfg.get("evidence_window_days", 30)))
+        ev_by_area, ev_store = compute_evidence(official.pop("all_items", []), state, now, cfg_int(cfg.get("evidence_window_days"), 30))
         official["evidence"] = ev_by_area
         links_state, retired = ({}, set())
         if not a.fixtures:  # never check links in offline test runs
             links_state, retired = check_links(signals, state, now)
-        press = fetch_press(bool(cfg.get("bbc_headlines", False)), a.fixtures, now)
-        if not cfg.get("auto_headlines", True):
+        press = fetch_press(cfg_flag(cfg.get("bbc_headlines"), False), a.fixtures, now)
+        if not cfg_flag(cfg.get("auto_headlines"), True):
             official["items"] = []
-        if not cfg.get("auto_levels", True):  # the emergency brake: no automatic raising of any level, and no automatic notices
+        if not cfg_flag(cfg.get("auto_levels"), True):  # the emergency brake: no automatic raising of any level, and no automatic notices
             official["bumps"], official["auto_notices"], official["evidence"] = {}, [], {}
     notice = load_or_exit(os.path.join(ROOT, "editorial", "notice.json"))
-    stale_banner_days = int(cfg.get("stale_days", 60)) if cfg.get("stale_banner", False) else 0     # off by default: the site is meant to run itself
+    stale_banner_days = cfg_int(cfg.get("stale_days"), 60) if cfg_flag(cfg.get("stale_banner"), False) else 0     # off by default: the site is meant to run itself
 
     def make(changes):
-        return build_feed(baseline, signals, notice, official, now, history, stale_banner_days, int(cfg.get("decay_days", 90)),
-                          int(cfg.get("signal_max_age_days", 365)), retired, int(cfg.get("evidence_min_items", 2)),
-                          int(cfg.get("evidence_window_days", 30)), press, changes)
+        return build_feed(baseline, signals, notice, official, now, history, stale_banner_days, cfg_int(cfg.get("decay_days"), 90),
+                          cfg_int(cfg.get("signal_max_age_days"), 365), retired, cfg_int(cfg.get("evidence_min_items"), 2),
+                          cfg_int(cfg.get("evidence_window_days"), 30), press, changes)
 
     changes_map = dict(state.get("area_changes") or {})
     feed = make(changes_map)

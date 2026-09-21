@@ -987,6 +987,12 @@ class Workflow(unittest.TestCase):
         step = self.text[self.text.index("Run the self-checks"):self.text.index("Build the site")]
         self.assertIn("continue-on-error: true", step)
 
+    def test_it_warns_in_plain_english_about_misplaced_files(self):
+        step = self.text[self.text.index("Check the files are in the right folders"):self.text.index("Run the self-checks")]
+        self.assertIn("continue-on-error: true", step)
+        for name in ("publish.py", "build_site.py", "signals.json", "tools/publish.py", "editorial/signals.json"):
+            self.assertIn(name, step)
+
     def test_still_runs_on_every_push_and_by_hand(self):
         self.assertIn("push:", self.text)
         self.assertIn("workflow_dispatch:", self.text)
@@ -1176,7 +1182,7 @@ class SafeEdits(unittest.TestCase):
 
     def test_a_typo_in_a_file_gives_a_plain_message_and_publishes_nothing(self):
         import subprocess
-        for fname, bad in (("editorial__signals.json", '{"signals": [ { "id": "x", }]}'), ("site.json", "{ name: Wary }"), ("official_sources.json", '{"sources": [')):
+        for fname, bad in (("editorial__signals.json", '{"signals": [ { "id": "x" '), ("site.json", "{ name: Wary }"), ("official_sources.json", '{"sources": [')):
             proj = self._project_with(**{fname: bad})
             out = os.path.join(self.tmp, "o", "feed.json")
             fx = tempfile.mkdtemp()      # an empty fixtures folder: no network, but the sources file IS read
@@ -1195,6 +1201,125 @@ class SafeEdits(unittest.TestCase):
         self.assertEqual(json.load(open(out))["signals"], [])
         b = subprocess.run([sys.executable, os.path.join(proj, "tools", "build_site.py")], capture_output=True, text=True)
         self.assertEqual(b.returncode, 0, b.stderr)
+
+
+class RealMi5Wording(unittest.TestCase):
+    """MI5's own words, exactly as they appear on the page."""
+    UK = "The threat to the UK (England, Wales, Scotland and Northern Ireland) from all forms of terrorism is SEVERE.*"
+    NI = "The threat to Northern Ireland from Northern Ireland-related terrorism is SUBSTANTIAL."
+
+    def test_the_current_wording_is_read_as_a_clear_statement(self):
+        self.assertEqual(publish.read_terror_level(self.UK.encode()), ("SEVERE", True))
+
+    def test_html_around_the_level_makes_no_difference(self):
+        page = f"<div><p>The threat to the UK (England, Wales, Scotland and Northern Ireland) from all forms of terrorism is <strong>SEVERE</strong>.*</p><p>{self.NI}</p></div>".encode()
+        self.assertEqual(publish.read_terror_level(page), ("SEVERE", True))
+        page2 = "<p>The&nbsp;threat to the UK (England, Wales, Scotland and Northern&nbsp;Ireland) from all forms of terrorism is&nbsp;<b>SEVERE</b>.*</p>".encode()
+        self.assertEqual(publish.read_terror_level(page2), ("SEVERE", True))
+
+    def test_the_northern_ireland_line_is_never_mistaken_for_the_national_level(self):
+        both = (self.NI + " " + self.UK).encode()
+        self.assertEqual(publish.read_terror_level(both), ("SEVERE", True))
+        with self.assertRaises(ValueError):
+            publish.read_terror_level(self.NI.encode())
+
+    def test_each_level_is_understood(self):
+        for lvl in ("LOW", "MODERATE", "SUBSTANTIAL", "SEVERE", "CRITICAL"):
+            page = f"The threat to the UK (England, Wales, Scotland and Northern Ireland) from all forms of terrorism is {lvl}.".encode()
+            self.assertEqual(publish.read_terror_level(page), (lvl, True))
+
+    def test_the_older_wording_still_works(self):
+        self.assertEqual(publish.read_terror_level(b"The current national threat level is SUBSTANTIAL."), ("SUBSTANTIAL", True))
+
+    def test_the_level_is_accepted_end_to_end_by_the_publisher(self):
+        tmp = tempfile.mkdtemp()
+        with open(os.path.join(tmp, "mi5-level.html"), "w") as f:
+            f.write(f"<p>{self.UK}</p><p>{self.NI}</p>")
+        doc = {"sources": [{"id": "mi5-level", "name": "MI5", "kind": "mi5_level", "url": "https://www.mi5.gov.uk/x", "licence": "x"}], "met_regions": [], "approved_hosts": ["gov.uk"]}
+        out = publish.gather_official(doc, tmp, publish.now_utc(), "SEVERE")
+        self.assertEqual(out["terror"], "SEVERE")
+        self.assertEqual(out["issues"], [])
+
+    def test_a_page_with_no_level_at_all_fails_safe(self):
+        tmp = tempfile.mkdtemp()
+        with open(os.path.join(tmp, "mi5-level.html"), "w") as f:
+            f.write("<p>This page has been redesigned and says nothing useful.</p>")
+        doc = {"sources": [{"id": "mi5-level", "name": "MI5", "kind": "mi5_level", "url": "https://www.mi5.gov.uk/x", "licence": "x"}], "met_regions": [], "approved_hosts": ["gov.uk"]}
+        out = publish.gather_official(doc, tmp, publish.now_utc(), "SEVERE")
+        self.assertIsNone(out["terror"])
+        self.assertTrue(out["issues"])
+
+
+class ForgivingEdits(unittest.TestCase):
+    def test_trailing_commas_missing_commas_and_python_booleans_are_forgiven(self):
+        self.assertEqual(publish.loads_lenient('{"a": 1, "b": true,}'), {"a": 1, "b": True})
+        self.assertEqual(publish.loads_lenient('{"a": 1,\n "b": True,\n "c": None\n}'), {"a": 1, "b": True, "c": None})
+        self.assertEqual(publish.loads_lenient('{\n "a": "x"\n "b": 2\n "c": [1, 2,]\n}'), {"a": "x", "b": 2, "c": [1, 2]})
+
+    def test_punctuation_inside_text_is_left_alone(self):
+        self.assertEqual(publish.loads_lenient('{"t": "keep, } this and True and None,",}')["t"], "keep, } this and True and None,")
+
+    def test_valid_json_is_unchanged(self):
+        d = {"a": [1, 2, {"b": "c"}], "d": None, "e": True}
+        self.assertEqual(publish.loads_lenient(json.dumps(d)), d)
+
+    def test_real_damage_still_raises(self):
+        for bad in ("{ name: Wary }", '{"a": ', '{"a" 1}', "not json at all"):
+            with self.assertRaises(ValueError):
+                publish.loads_lenient(bad)
+
+    def test_flags_accept_words_as_well_as_true_and_false(self):
+        self.assertTrue(publish.cfg_flag(True))
+        self.assertTrue(publish.cfg_flag("true"))
+        self.assertTrue(publish.cfg_flag(" Yes "))
+        self.assertFalse(publish.cfg_flag("false"))          # a quoted "false" must never switch something ON
+        self.assertFalse(publish.cfg_flag("off"))
+        self.assertTrue(publish.cfg_flag(None, True))
+        self.assertFalse(publish.cfg_flag(None, False))
+        self.assertEqual(publish.cfg_int("60", 5), 60)
+        self.assertEqual(publish.cfg_int("sixty", 5), 5)
+
+    def test_every_way_of_switching_the_bbc_strip_on_works_end_to_end(self):
+        import subprocess
+        base = dload("site.json")
+        base.pop("bbc_headlines", None)
+        good = json.dumps(base, indent=2).rstrip()[:-1].rstrip()
+        variants = {"new line first": '{\n  "bbc_headlines": true,' + json.dumps(base, indent=2)[1:],
+                    "trailing comma at the end": good + ',\n  "bbc_headlines": true,\n}',
+                    "missing comma on the line above": good + '\n  "bbc_headlines": true\n}',
+                    "python True": '{\n  "bbc_headlines": True,' + json.dumps(base, indent=2)[1:],
+                    "quoted true": '{\n  "bbc_headlines": "true",' + json.dumps(base, indent=2)[1:]}
+        now = publish.now_utc()
+        for name, text in variants.items():
+            proj = make_project(tempfile.mkdtemp())
+            open(os.path.join(proj, "site.json"), "w").write(text)
+            fx = tempfile.mkdtemp()
+            for n in ("gov-mod.atom", "gov-homeoffice.atom", "gov-cabinet.atom", "gov-desnz.atom", "ncsc.xml"):
+                open(os.path.join(fx, n), "w").write('<rss version="2.0"><channel></channel></rss>')
+            open(os.path.join(fx, "mi5-level.html"), "w").write("<p>" + RealMi5Wording.UK + "</p>")
+            open(os.path.join(fx, "bbc-uk.xml"), "w").write(rss([("Major incident declared after power cuts across the region", "d", now - timedelta(hours=1))]))
+            open(os.path.join(fx, "bbc-world.xml"), "w").write(rss([]))
+            out = os.path.join(fx, "site", "feed.json")
+            r = subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", fx, "--state", os.path.join(fx, "s.json"), "--out", out], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, name + r.stderr)
+            self.assertEqual(len(json.load(open(out))["press"]), 1, name)
+            b = subprocess.run([sys.executable, os.path.join(proj, "tools", "build_site.py")], capture_output=True, text=True)
+            self.assertEqual(b.returncode, 0, name + b.stderr)
+
+    def test_a_quoted_false_keeps_the_bbc_strip_off(self):
+        import subprocess
+        proj = make_project(tempfile.mkdtemp())
+        base = dload("site.json")
+        base["bbc_headlines"] = "false"
+        json.dump(base, open(os.path.join(proj, "site.json"), "w"))
+        fx = tempfile.mkdtemp()
+        for n in ("gov-mod.atom", "gov-homeoffice.atom", "gov-cabinet.atom", "gov-desnz.atom", "ncsc.xml"):
+            open(os.path.join(fx, n), "w").write('<rss version="2.0"><channel></channel></rss>')
+        open(os.path.join(fx, "mi5-level.html"), "w").write("<p>" + RealMi5Wording.UK + "</p>")
+        open(os.path.join(fx, "bbc-uk.xml"), "w").write(rss([("Major incident declared", "d", publish.now_utc() - timedelta(hours=1))]))
+        out = os.path.join(fx, "site", "feed.json")
+        subprocess.run([sys.executable, os.path.join(proj, "tools", "publish.py"), "--fixtures", fx, "--state", os.path.join(fx, "s.json"), "--out", out], check=True, capture_output=True)
+        self.assertEqual(json.load(open(out))["press"], [])
 
 
 class LevelPreview(unittest.TestCase):
