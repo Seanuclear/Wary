@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover
     import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODE_VERSION = "2026-09-21-pack-15"
+CODE_VERSION = "2026-09-21-pack-16"
 UA = "Mozilla/5.0 (compatible; WaryBot/1.0; non-commercial; +https://wary.org.uk)"
 AREAS = ["energy", "cyber", "comms", "security", "military", "supply"]
 AREA_NAMES = {"energy": "Power, gas and fuel", "cyber": "Cyber attacks on services", "comms": "Cables, GPS and phone networks",
@@ -46,7 +46,7 @@ RX = {
     "cyber": r"cyber|ransomware|malware|hackers?|hacking|ddos|data breach|\bncsc\b|\bgchq\b|phishing",
     "comms": r"undersea|subsea|seabed|submarine cable|fibre|telecoms?|mobile network|broadband|\bgps\b|jamming|satellite|\bofcom\b",
     "security": r"terror|threat level|\bjtac\b|\bmi5\b|counter[- ]terror|sabotage|arson|extremis[tm]|espionage|state[- ]linked|hostile state|explosive",
-    "military": r"\bnato\b|nuclear|warhead|missile|russian navy|russian submarine|escalat|airspace|ministry of defence|\btrident\b|strategic defence",
+    "military": r"\bnato\b|nuclear|warhead|missile|russian (?:navy|submarine|warship|vessel|aircraft|bomber)|escalat|airspace|\btrident\b|deterrent|drone incursion",
     "supply": r"food (shortage|supply)|supply chain|water (supply|company|utility)|resilience|emergency (preparedness|planning)|stockpil",
 }
 RX = {k: re.compile(v, re.I) for k, v in RX.items()}
@@ -479,7 +479,7 @@ def build_checks(official, baseline, now):
     return strip
 
 
-def build_feed(baseline, signals, notice, official, now, history=None, stale_days=60, decay_days=90, signal_max_age_days=365, retired=(), evidence_min=2, evidence_days=30, press=None, area_changes=None):
+def build_feed(baseline, signals, notice, official, now, history=None, stale_days=60, decay_days=90, signal_max_age_days=365, retired=(), evidence_min=2, evidence_days=30, press=None, area_changes=None, hands_off=False):
     """official = {'terror': str|None, 'items': [...], 'weather': {...}, 'used': [...], 'issues': [...]}"""
     tmap = baseline["official_terror_map"]
     areas, levels = [], {}
@@ -495,13 +495,13 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
         else:
             base_eff = b["level"]
             when = parse_dt(b["as_of"])
-            if base_eff > 2 and when and (now - when) > timedelta(days=decay_days):
+            if base_eff > 2 and when and (hands_off or (now - when) > timedelta(days=decay_days)):
                 base_eff, lowered = 2, True   # nobody has reviewed it for a long time: settle at Aware rather than stay elevated
         ev = (official.get("evidence") or {}).get(a) if a in EVIDENCE_AREAS else None   # terrorism never uses this: it follows MI5
         ev_level = 3 if (ev and ev["count"] >= evidence_min) else 1
         lvl = max(base_eff, ev_level, bump)
         when_text = parse_dt(b["as_of"])
-        text_stale = bool(when_text and (now - when_text) > timedelta(days=decay_days))
+        text_stale = bool(hands_off or (when_text and (now - when_text) > timedelta(days=decay_days)))
         ev_active = bool(ev and ev["count"] >= evidence_min and ev_level > base_eff)
         ev_noted = bool(ev and ev["count"] >= 1 and not ev_active and not follows)
         bump_active = bump > base_eff
@@ -608,7 +608,7 @@ def build_feed(baseline, signals, notice, official, now, history=None, stale_day
         "checks": build_checks(official, baseline, now),
         "press": press or [],
         "reviewed": reviewed_date(baseline) if any(x["basis"] == "editor" and x["level"] > 2 for x in areas) else None,
-        "stale_days": stale_days, "decay_days": decay_days,
+        "stale_days": stale_days, "decay_days": decay_days, "hands_off": bool(hands_off),
         "auto_notices": official.get("auto_notices", []),
         "history": sorted(history or [], key=lambda e: e["date"], reverse=True)[:12],
     }
@@ -834,6 +834,10 @@ def _join(names):
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
+MILITARY_RELEVANT = re.compile(r"\b(nato|nuclear|warhead|missile|escalat\w*|airspace|trident|russia\w*|hostile|deterr\w*|attacks?|threat\w*|sabotage|conflict|war|drones?|submarines?|strikes?|aggress\w*)\b", re.I)
+SUPPLY_RELEVANT = re.compile(r"\b(shortages?|disrupt\w*|contaminat\w*|boil|outages?|stockpil\w*|panic|unavailable|threat\w*|attacks?|sabotage|failure)\b", re.I)
+
+
 def nice_summary(title, summary, max_len=240):
     """The source's OWN short description of an item (GOV.UK and NCSC feeds carry one, reusable under the Open Government Licence).
     Skipped if it is empty, too short to say anything, or just repeats the headline. Cut at a sentence end where possible."""
@@ -867,8 +871,8 @@ def indicator_sentences(area, checks, items):
     c = checks or {}
     out = []
 
-    def latest(cat):
-        rows = [i for i in (items or []) if cat in i.get("cats", [])]
+    def latest(cat, relevant=None):
+        rows = [i for i in (items or []) if cat in i.get("cats", []) and (relevant is None or relevant.search(f"{i['title']} {i.get('summary', '')}"))]
         return max(rows, key=lambda i: i["date"]) if rows else None
 
     def space():
@@ -904,14 +908,14 @@ def indicator_sentences(area, checks, items):
         if space():
             out.append(space())
     elif area == "military":
-        i = latest("military")
+        i = latest("military", MILITARY_RELEVANT)
         if i:
             out.append(f"The latest official item on this area was published on {fmt_day(i['date'])}: {i['title']}.")
             sm = nice_summary(i["title"], i.get("summary"))
             if sm:
                 out.append(f"Its own summary: \u201C{sm}\u201D")
     elif area == "supply":
-        i = latest("supply")
+        i = latest("supply", SUPPLY_RELEVANT)
         if i:
             out.append(f"The latest official item on this area was published on {fmt_day(i['date'])}: {i['title']}.")
             sm = nice_summary(i["title"], i.get("summary"))
@@ -927,7 +931,7 @@ def indicator_sentences(area, checks, items):
 
 
 BASIS_TEXT = {"official": "following the official MI5 level", "evidence": "official evidence", "raised": "an official trigger",
-              "decayed": "the standing level settled after 90 days", "editor": "the standing level"}
+              "decayed": "the hand-written standing level was set aside, because the site runs automatically", "editor": "the standing level"}
 
 
 def track_changes(prev, areas, area_changes, now):
@@ -1313,7 +1317,7 @@ def main():
     def make(changes):
         return build_feed(baseline, signals, notice, official, now, history, stale_banner_days, cfg_int(cfg.get("decay_days"), 90),
                           cfg_int(cfg.get("signal_max_age_days"), 365), retired, cfg_int(cfg.get("evidence_min_items"), 2),
-                          cfg_int(cfg.get("evidence_window_days"), 30), press, changes)
+                          cfg_int(cfg.get("evidence_window_days"), 30), press, changes, cfg_flag(cfg.get("hands_off"), True))
 
     changes_map = dict(state.get("area_changes") or {})
     feed = make(changes_map)
