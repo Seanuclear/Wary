@@ -1,10 +1,13 @@
 # Builds the site and publishes it to GitHub Pages about every 30 minutes, and whenever you change a file.
 # One-time setup: repository Settings, Pages, Build and deployment, Source: "GitHub Actions".
 #
-# Two things GitHub does that this file works around:
-#  1. Scheduled runs at the top of the hour are the most delayed, so this runs at 7 and 37 minutes past.
-#  2. In a public repository GitHub switches scheduled runs OFF after 60 days with no repository activity.
-#     The "keep the schedule alive" step makes a tiny empty commit after 40 quiet days, so a hands-off site keeps running.
+# Design rules this file follows:
+#  1. SAFETY CHECKS BLOCK PUBLISHING. If tests/test_safety.py fails, nothing is published. The last good version stays live and the page
+#     itself says "Out of date" after about 3 hours. A stale, labelled page is the site's honest way of saying "I don't know".
+#  2. The ordinary build has READ-ONLY repository permission. The one job that needs write permission (keeping the schedule alive)
+#     lives in its own small file, keepalive.yml.
+#  3. Runs are never cancelled half way (that can wedge GitHub Pages). New runs wait their turn.
+#  4. Scheduled runs at the top of the hour are the most delayed, so this runs at 7 and 37 minutes past.
 name: Build and publish
 on:
   schedule:
@@ -16,12 +19,12 @@ permissions:
   contents: read
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false      # never cancel a deployment half way: that can wedge GitHub Pages. New runs wait their turn instead.
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # only used by the keep-alive commit
+      contents: read
       pages: write
     steps:
       - uses: actions/checkout@v4
@@ -31,19 +34,25 @@ jobs:
       - name: Check the files are in the right folders (warnings only)
         continue-on-error: true
         run: |
-          for f in tools/publish.py tools/build_site.py src/index.src.html editorial/baseline.json editorial/signals.json site.json official_sources.json; do
+          for f in tools/publish.py tools/build_site.py src/index.src.html editorial/baseline.json editorial/signals.json site.json official_sources.json tests/test_safety.py; do
             [ -f "$f" ] || echo "::error::Missing $f. It must be in exactly this folder."
           done
-          for f in publish.py build_site.py test_publish.py index.src.html manifest.webmanifest signals.json; do
+          for f in publish.py build_site.py test_publish.py test_safety.py index.src.html manifest.webmanifest signals.json; do
             [ -f "$f" ] && echo "::warning::Misplaced file $f at the top level of the repository. It belongs inside a folder, and this copy is not used. Delete it."
           done
           true
-      - name: Run the self-checks (a warning here never stops the site publishing)
-        continue-on-error: true      # the self-checks are for the developer. Your own files are validated by the publish step below.
-        run: python -m unittest discover -s tests
+      - name: Safety checks (these MUST pass, otherwise nothing is published)
+        id: safety
+        run: python -m unittest discover -s tests -p "test_safety.py" -v
+      - name: Explain a safety failure
+        if: failure() && steps.safety.outcome == 'failure'
+        run: echo "::error::A safety check failed, so the site was NOT updated. The last good version stays live and will say 'Out of date' after about 3 hours. Open the step above to see which check failed."
+      - name: Wider self-checks (warnings only; a yellow warning here never stops the site publishing)
+        continue-on-error: true
+        run: python -m unittest discover -s tests -p "test_publish.py"
       - name: Build the site
         run: python tools/build_site.py
-      - name: Remember state between runs (level 5 timers, evidence, link checks, change log)
+      - name: Keep a copy of the memory as a fallback (the site also publishes its own copy as state.json)
         uses: actions/cache@v4
         with:
           path: data
@@ -53,20 +62,14 @@ jobs:
         run: python tools/publish.py
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Keep the schedule alive (empty commit if the repository has been quiet for 40 days)
-        if: github.event_name == 'schedule'
-        continue-on-error: true      # a failure here must never stop the site publishing
+      - name: Browser checks (only when the code changes, not on the 30-minute refresh)
+        if: github.event_name == 'push'
         run: |
-          last=$(git log -1 --format=%ct)
-          now=$(date +%s)
-          quiet_days=$(( (now - last) / 86400 ))
-          echo "Days since the last commit: $quiet_days"
-          if [ "$quiet_days" -ge 40 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit --allow-empty -m "Keep scheduled builds alive"
-            git push
-          fi
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python -m http.server 8770 --directory site &
+          sleep 2
+          python tests/browser_check.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
