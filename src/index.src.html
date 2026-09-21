@@ -476,6 +476,7 @@ footer p{max-width:50em;color:var(--hero-fg)}
           <p>The editor maintains the rules and is responsible for what the site says.</p>
           {{ADDRESS_LINE}}
           {{CONTACT_LINE}}
+          <p class="meta" id="build-stamp"></p>
           {{DONATE_BLOCK}}
         </div>
       </div>
@@ -718,7 +719,7 @@ function retryLookup(){
 
 /* ---------- rendering ---------- */
 function render(){
-  renderPress(); renderTagline(); renderChecks(); renderChanges(); renderNow(); renderKit(); renderStatus(); renderHousehold(); renderHero(); renderStart(); renderAreas(); renderLegend(); renderSignals(); renderLocal(); renderSources();
+  renderBuild(); renderPress(); renderTagline(); renderChecks(); renderChanges(); renderNow(); renderKit(); renderStatus(); renderHousehold(); renderHero(); renderStart(); renderAreas(); renderLegend(); renderSignals(); renderLocal(); renderSources();
 }
 function renderHousehold(){
   var b=document.getElementById('hh'), p=profile;
@@ -797,6 +798,10 @@ function renderPress(){
   var list=feed.press||[]; sec.hidden=!list.length; if(!list.length) return;
   list.forEach(function(x){ var href=safeHref(x.url);
     ul.appendChild(h('li',null,href?h('a',{href:href,target:'_blank',rel:'noopener noreferrer',text:x.title}):h('span',{text:x.title}),h('div',{'class':'meta',text:x.source+', '+ago(x.published)}))); });
+}
+function renderBuild(){
+  var el=document.getElementById('build-stamp'); if(!el) return;
+  var b=feed.build; el.textContent=b?('Build '+b.commit+(b.run?', run '+b.run:'')+', code '+b.code+'. '+(b.signals_read||0)+' written signals read, '+(b.sources_read||0)+' official sources read'+(b.terror_level_read?'.':'. The terrorism level could not be read live.')):'';
 }
 function renderTagline(){ var tg=document.querySelector('.tagline'); if(tg) tg.hidden=(feed.overall.level===5); }
 function renderChanges(){
