@@ -18,10 +18,16 @@ The levels and the change log are calculated automatically from official data. T
 
 A static site, rebuilt by GitHub Actions every 30 minutes and whenever a file changes.
 
+**A guiding rule:** the site must never become more reassuring merely because it knows less. If a source cannot be read, it keeps the last confirmed level, says so, and shows when it was last confirmed. It also never raises an alarm on weak evidence: automatic High needs strict, official, current, UK-relevant wording, and Critical needs a signal that has held for hours and been confirmed recently.
+
+**Memory:** each run publishes a small `state.json` beside `feed.json` and reads the previous one back next time, so the site remembers recent statements and timers without any database. A copy is also kept in the workflow cache as a fallback. A missing or damaged memory never stops publishing. It restarts cautiously and says so on the page.
+
+**Safety checks block publishing:** `tests/test_safety.py` runs before every build. If it fails, nothing is published, the last good version stays live, and the page itself says "Out of date" after about 3 hours. Browser checks (`tests/browser_check.py`) also run whenever the code changes, and cover the privacy promises.
+
 - `editorial/` holds the editor's baseline levels, change log, notices and signals (short summaries in the editor's own words, each linking to the original).
-- Official, open-licensed sources are read automatically: the MI5 threat level, GOV.UK, the NCSC, the Met Office, GOV.UK Emergency Alerts, Elexon grid notices and space weather levels (NOAA).
+- Official, open-licensed sources are read automatically: the national terrorism threat level (from GOV.UK, with MI5's page as a back-up), GOV.UK, the NCSC, the Met Office, GOV.UK Emergency Alerts, Elexon grid notices and space weather levels (NOAA).
 - Areas rise to Elevated by themselves when two or more different official statements in 30 days name hostile activity affecting them, and fall back as the statements age out. Terrorism follows the MI5 level.
-- Press feeds are not used, apart from an optional strip of BBC headlines and links that is off by default and never changes a level. Nothing from the press can move a level.
+- Press feeds are not used, apart from an optional strip of BBC headlines and links. It is a switch in `site.json` (`bbc_headlines`): off in the template, and currently ON for wary.org.uk. Headlines are only ever displayed. Nothing from the press can move a level, and a test proves it.
 - `src/` is the page. `tools/` builds it. `tests/` run before every publish.
 
 ## Sources and attribution
@@ -37,3 +43,11 @@ A static site, rebuilt by GitHub Actions every 30 minutes and whenever a file ch
 ## Corrections
 
 Errors are welcome. The contact address is on the website, in the About section.
+
+## Reporting a security problem
+
+See `SECURITY.md`. Please do not put details of a vulnerability in a public issue.
+
+## Reuse
+
+The source code is published so that anyone can check how Wary works and where its numbers come from. No licence for reuse has been granted yet: all rights are reserved for now. If you would like to reuse or adapt it, please ask using the contact address on the website. Official data shown on the site remains under its own open licences, listed under Sources and attribution above.
