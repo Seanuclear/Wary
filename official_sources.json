@@ -9,6 +9,13 @@
       "licence": "Crown copyright, mi5.gov.uk"
     },
     {
+      "id": "gov-terror",
+      "name": "GOV.UK: Terrorism threat level (back-up)",
+      "kind": "mi5_level",
+      "url": "https://www.gov.uk/terrorism-national-emergency",
+      "licence": "OGL v3.0"
+    },
+    {
       "id": "gov-mod",
       "name": "GOV.UK: Ministry of Defence",
       "kind": "rss",
