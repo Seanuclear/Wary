@@ -512,6 +512,80 @@ class SafetyHandsOff(unittest.TestCase):
         self.assertIn("Russian submarine activity near UK waters", area(f, "military")["reason"])
 
 
+class SafetyCounter(unittest.TestCase):
+    """The optional visit counter must be truly anonymous, off by default, and never able to break the page."""
+
+    def build(self, counter_url=None, tmp=None):
+        import shutil, subprocess
+        tmp = tmp or tempfile.mkdtemp()
+        p = os.path.join(tmp, "p")
+        shutil.copytree(os.path.join(ROOT, "tools"), os.path.join(p, "tools"), ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(os.path.join(ROOT, "src"), os.path.join(p, "src"))
+        os.makedirs(os.path.join(p, "editorial"))
+        for rel, obj in (("editorial/baseline.json", baseline()), ("editorial/signals.json", {"signals": []}), ("editorial/history.json", {"entries": []}),
+                        ("editorial/notice.json", {"text": ""}), ("official_sources.json", SOURCES)):
+            put(os.path.join(p, rel), json.dumps(obj))
+        site = {"name": "Wary", "short_name": "Wary", "tagline": "Watchful, not worried.", "description": "Test", "owner": "Test", "contact": "",
+                "donate_url": "", "host": "GitHub Pages", "site_url": "", "auto_levels": True, "auto_headlines": True}
+        if counter_url is not None:
+            site["counter_url"] = counter_url
+        put(os.path.join(p, "site.json"), json.dumps(site))
+        r = subprocess.run([sys.executable, os.path.join(p, "tools", "build_site.py")], capture_output=True, text=True, cwd=p, env=dict(os.environ, WARY_NOW=publish.iso(T0)))
+        self.assertEqual(r.returncode, 0, r.stderr[-600:])
+        return get(os.path.join(p, "site", "index.html")), r.stderr
+
+    def test_off_by_default_no_worker_address_anywhere_and_no_placeholder_left_behind(self):
+        page, _ = self.build()  # counter_url not set at all, same as an owner's existing site.json
+        self.assertNotIn("workers.dev", page)
+        self.assertNotIn("{{COUNTER", page)
+        self.assertIn("var CU='';", page, "with no counter configured the guard variable must be empty, so the if(CU) check never fires")
+
+    def test_switched_on_adds_the_address_to_the_page_and_the_security_policy_and_nowhere_else(self):
+        page, _ = self.build("https://wary-counter.example.workers.dev/count")
+        csp = re.search(r'Content-Security-Policy" content="([^"]+)"', page).group(1)
+        self.assertIn("https://wary-counter.example.workers.dev", csp)
+        self.assertEqual(csp.count("wary-counter.example.workers.dev"), 1, "the address must appear in connect-src only, nowhere else in the policy")
+        self.assertIn("https://wary-counter.example.workers.dev/count", page)
+
+    def test_a_malformed_address_is_rejected_and_the_counter_stays_off(self):
+        page, err = self.build("not a url; <script>alert(1)</script>")
+        self.assertNotIn("<script>alert(1)</script>", page)
+        self.assertNotIn("workers.dev", page)
+        self.assertIn("does not look like a plain https address", err)
+
+    def test_only_the_origin_reaches_the_security_policy_never_a_path_or_query(self):
+        page, _ = self.build("https://wary-counter.example.workers.dev/count?key=shouldnotleak")
+        csp = re.search(r'Content-Security-Policy" content="([^"]+)"', page).group(1)
+        self.assertNotIn("key=", csp)
+        self.assertNotIn("shouldnotleak", csp)
+
+    def test_the_ping_is_fire_and_forget_it_is_never_awaited_and_always_wrapped_in_try_catch(self):
+        page, _ = self.build("https://wary-counter.example.workers.dev/count")
+        block = page[page.index("var CU="):page.index("var CU=") + 260]
+        self.assertIn("try{", page[max(0, page.index("var CU=") - 10):page.index("var CU=")])
+        self.assertIn(".catch(function(){})", block, "a failed or blocked ping must be swallowed silently, never surfaced to the visitor")
+        self.assertNotIn("await fetch", block)
+
+    def test_the_counter_never_sends_a_cookie_and_the_page_never_reads_a_reply(self):
+        page, _ = self.build("https://wary-counter.example.workers.dev/count")
+        block = page[page.index("var CU="):page.index("var CU=") + 260]
+        self.assertNotIn("credentials", block)                          # no credentials: 'include' — no cookie is ever sent
+        self.assertIn("mode:'no-cors'", block)                          # the page cannot read anything back even if it tried
+
+    def test_the_about_page_is_honest_about_the_counter_only_when_it_exists(self):
+        off, _ = self.build()
+        on, _ = self.build("https://wary-counter.example.workers.dev/count")
+        self.assertNotIn("This page counts visits", off)
+        self.assertIn("This page counts visits", on)
+        self.assertIn("no cookie, no ID", on)
+
+    def test_the_worker_source_never_logs_or_stores_anything_beyond_the_bare_count(self):
+        w = get(os.path.join(ROOT, "..", "KEEP-PRIVATE", "branding-and-tools", "counter-worker.js"))
+        for field in ("headers.get(\"cf-connecting-ip\")", "request.headers.get(\"user-agent\")", "cf.country", "console.log"):
+            self.assertNotIn(field, w)
+        self.assertIn("total", w)
+
+
 class SafetyPress(unittest.TestCase):
     def test_press_headlines_can_never_move_any_level_or_notice(self):
         """Even the most alarming BBC headlines, with the strip switched ON, are only ever shown. They never change a rating."""
