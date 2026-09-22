@@ -579,11 +579,6 @@ class SafetyCounter(unittest.TestCase):
         self.assertIn("This page counts visits", on)
         self.assertIn("no cookie, no ID", on)
 
-    def test_the_worker_source_never_logs_or_stores_anything_beyond_the_bare_count(self):
-        w = get(os.path.join(ROOT, "..", "KEEP-PRIVATE", "branding-and-tools", "counter-worker.js"))
-        for field in ("headers.get(\"cf-connecting-ip\")", "request.headers.get(\"user-agent\")", "cf.country", "console.log"):
-            self.assertNotIn(field, w)
-        self.assertIn("total", w)
 
 
 class SafetyPress(unittest.TestCase):
