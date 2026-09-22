@@ -11,12 +11,28 @@ import json
 import os
 import re
 import sys
+import urllib.request
 
 from playwright.sync_api import sync_playwright
 
 PORT = os.environ.get("WARY_PORT", "8770")
 BASE = f"http://127.0.0.1:{PORT}/"
-ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", "api.postcodes.io", "environment.data.gov.uk"}
+POSTCODE_HOSTS = {"api.postcodes.io", "environment.data.gov.uk"}
+
+
+def counter_host():
+    """The visit counter's address, read from the actual built page (not hardcoded), so this check always matches
+    whatever is really configured -- on, off, or pointed at a different Worker -- without needing to be edited."""
+    try:
+        html = urllib.request.urlopen(BASE, timeout=5).read().decode("utf-8", "replace")
+        m = re.search(r"var CU='(https://[^']+)'", html)
+        return re.match(r"https://[^/]+", m.group(1)).group(0).replace("https://", "") if m else None
+    except Exception:
+        return None
+
+
+COUNTER_HOST = counter_host()
+ALLOWED_HOSTS = {f"127.0.0.1:{PORT}"} | POSTCODE_HOSTS | ({COUNTER_HOST} if COUNTER_HOST else set())
 CORS = {"access-control-allow-origin": "*", "content-type": "application/json"}
 failures = []
 
@@ -97,7 +113,10 @@ with sync_playwright() as p:
     pg.goto(BASE)
     wizard(pg, "")
     third = [u for u in reqs if f"127.0.0.1:{PORT}" not in u]
-    check("2 no third-party requests with a blank postcode", third == [], third)
+    postcode_related = [u for u in third if any(h in u for h in POSTCODE_HOSTS)]
+    check("2 no postcode or flood requests with a blank postcode", postcode_related == [], postcode_related)
+    unexpected = [u for u in third if not (COUNTER_HOST and COUNTER_HOST in u)]
+    check("2b nothing else unexpected is contacted either", unexpected == [], unexpected)
     ctx.close()
 
     # 3. the flood service failing is said plainly, not shown as 'no warnings'
