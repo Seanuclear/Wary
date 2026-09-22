@@ -572,12 +572,34 @@ class SafetyCounter(unittest.TestCase):
         self.assertNotIn("credentials", block)                          # no credentials: 'include' — no cookie is ever sent
         self.assertIn("mode:'no-cors'", block)                          # the page cannot read anything back even if it tried
 
+    def test_the_ping_fires_from_the_one_time_page_load_function_not_from_render(self):
+        """render() runs on every setup change, retry, wipe and the 15-minute feed refresh. The ping must live
+        outside it, in load(), which only ever runs once per page life, with its own explicit one-shot guard."""
+        page, _ = self.build("https://wary-counter.example.workers.dev/count")
+        render_fn = page[page.index("function render(){"):page.index("function render(){") + 400]
+        self.assertNotIn("fetch(CU", render_fn, "the ping must not be inside render(), which fires many times per session")
+        self.assertIn("var counted=false;", page)
+        self.assertIn("if(counted) return; counted=true;", page)
+        load_fn = page[page.index("function load(){"):page.index("function load(){") + 400]
+        self.assertIn("pingCounterOnce()", load_fn)
+
+    def test_a_url_containing_a_literal_quote_cannot_break_out_of_the_script(self):
+        """counter_url is owner-controlled, not public input, but it must still be JSON-escaped, not trusted to
+        never contain a stray quote or backslash, the same standard the rest of the page holds itself to."""
+        mischief = "https://wary-counter.example.workers.dev/count?x=';document.write('bad"
+        page, _ = self.build(mischief)
+        line = page[page.index("var CU="):page.index("var CU=") + 200]
+        self.assertNotIn("x=';document.write(", line, "an unescaped quote here would end the string and let this run as code")
+        self.assertIn("x=\\';document.write(", line, "the quote must be escaped, so the payload stays inert text inside the string")
+
     def test_the_about_page_is_honest_about_the_counter_only_when_it_exists(self):
         off, _ = self.build()
         on, _ = self.build("https://wary-counter.example.workers.dev/count")
         self.assertNotIn("This page counts visits", off)
         self.assertIn("This page counts visits", on)
         self.assertIn("no cookie, no ID", on)
+        self.assertIn("sends no identifier or visitor information", on)
+        self.assertNotIn("never receives anything else", on)   # too absolute a claim about a third party\'s own network
 
 
 
