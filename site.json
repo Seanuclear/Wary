@@ -12,5 +12,6 @@
   "stale_days": 60,
   "hold_hours": 6,
   "bbc_headlines": true,
+  "counter_url": "https://wary-counter.seanjudge.workers.dev/count",
   "auto_levels": true
 }
