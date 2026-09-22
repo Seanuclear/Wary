@@ -9,6 +9,7 @@ live feed cannot be loaded.
 """
 import argparse
 import html
+import re
 import json
 import os
 import shutil
@@ -278,6 +279,20 @@ def main():
                     f'<meta name="twitter:card" content="summary_large_image">')
     subs = {"{{OG_BLOCK}}": og_block, "{{ADDRESS_LINE}}": address_line, "{{NAME}}": e("name"), "{{SHORT_NAME}}": e("short_name"), "{{TAGLINE}}": e("tagline"), "{{DESCRIPTION}}": e("description"), "{{OWNER}}": e("owner"),
             "{{HOST}}": e("host"), "{{CONTACT_LINE}}": contact_line, "{{DONATE_BLOCK}}": donate_block}
+
+    counter_url = cfg.get("counter_url", "").strip()
+    counter_origin = ""
+    if counter_url:
+        m = re.match(r"https://[^/]+", counter_url)
+        counter_origin = m.group(0) if m else ""      # only the origin goes in the security policy; never the path
+        if not counter_origin:
+            print(f"warning: counter_url '{counter_url}' does not look like a plain https address; the visit counter is switched off for this build", file=sys.stderr)
+            counter_url = ""
+    subs["{{COUNTER_URL}}"] = counter_url
+    subs["{{COUNTER_CONNECT}}"] = (" " + counter_origin) if counter_origin else ""
+    subs["{{COUNTER_NOTE}}"] = ("<li>This page counts visits with a single number: no cookie, no ID, and nothing that could tell one visit from "
+        "another. Cloudflare, which runs that counter, sees the request reach its network the same way it does for any site, before our code "
+        "runs and adds 1; it never receives anything else from this page.</li>") if counter_url else ""
 
     def fill(text):
         for k, v in subs.items():
