@@ -10,6 +10,7 @@ live feed cannot be loaded.
 import argparse
 import html
 import re
+import urllib.parse
 import json
 import os
 import shutil
@@ -283,16 +284,20 @@ def main():
     counter_url = cfg.get("counter_url", "").strip()
     counter_origin = ""
     if counter_url:
-        m = re.match(r"https://[^/]+", counter_url)
-        counter_origin = m.group(0) if m else ""      # only the origin goes in the security policy; never the path
-        if not counter_origin:
+        u = urllib.parse.urlsplit(counter_url)
+        if u.scheme == "https" and u.netloc and not u.username and not u.password:
+            counter_origin = f"{u.scheme}://{u.netloc}"     # only the origin goes in the security policy; never the path
+        else:
             print(f"warning: counter_url '{counter_url}' does not look like a plain https address; the visit counter is switched off for this build", file=sys.stderr)
             counter_url = ""
-    subs["{{COUNTER_URL}}"] = counter_url
+    # JSON-escaping alone is NOT enough here: json.dumps handles double quotes/backslashes/control characters, but
+    # the page wraps this in a JS SINGLE-quoted string (var CU='...'), and JSON never escapes a literal apostrophe.
+    # So a raw single quote from json.dumps would still break out of the string. Escape it explicitly afterwards.
+    subs["{{COUNTER_URL}}"] = json.dumps(counter_url)[1:-1].replace("'", "\\'")
     subs["{{COUNTER_CONNECT}}"] = (" " + counter_origin) if counter_origin else ""
     subs["{{COUNTER_NOTE}}"] = ("<li>This page counts visits with a single number: no cookie, no ID, and nothing that could tell one visit from "
-        "another. Cloudflare, which runs that counter, sees the request reach its network the same way it does for any site, before our code "
-        "runs and adds 1; it never receives anything else from this page.</li>") if counter_url else ""
+        "another. The page sends no identifier or visitor information with the count. Cloudflare, which runs the counter, sees the request "
+        "reach its network the way it does for any site; the Worker itself stores only that single aggregate total.</li>") if counter_url else ""
 
     def fill(text):
         for k, v in subs.items():
