@@ -439,12 +439,13 @@ footer p{max-width:50em;color:var(--hero-fg)}
         <div class="box">
           <h3>The rules</h3>
           <ul>
-            <li>Each area has a <strong>standing level</strong> that the editor can set from official assessments, and reviews from time to time. The page shows when. If an area goes unreviewed for 90 days, any level above Aware settles down to Aware by itself.</li>
+            <li><strong>Aware is the normal baseline</strong> for the five non-terrorism areas. The site runs automatically: hand-written background information can provide context, but it does not hold a live rating above Aware. Recent official evidence and the automatic rules below can raise an area when something materially changes.</li>
             <li><strong>Official evidence moves areas by itself.</strong> When two or more different official statements in the last 30 days (from GOV.UK departments and the NCSC) name hostile or state-linked activity affecting an area, that area rises to Elevated. It falls back on its own as the statements age out. They are listed under the area, so you can read them.</li>
             <li>The <strong>terrorism</strong> area follows the official MI5 threat level automatically, up and down.</li>
-            <li>A few clear <strong>official</strong> triggers can raise other areas to High for up to 72 hours, labelled &ldquo;raised automatically&rdquo;: the NCSC declaring a nationally significant cyber incident, the grid operator warning of demand control or load shedding, or an official statement about damage to undersea cables.</li>
+            <li>A small number of <strong>strict official, current and UK-relevant</strong> triggers can raise an area to High for a limited period. These include a nationally significant cyber incident with material impact on UK essential or public services, a grid warning involving demand control or load shedding, or confirmed damage to undersea infrastructure with a direct UK connection. Routine notices, historical reports and incidents elsewhere do not qualify.</li>
             <li>Nothing from the press moves a level. Other automatic headlines are shown for information only.</li>
             <li><strong>Level 5</strong> is set automatically only for a very clear official signal that has held for over 6 hours: the official terrorism threat level at CRITICAL, or the government naming an attack on the UK while convening COBR. Until it has held, the area shows High. Real emergencies will reach you first through Emergency Alerts and the government, not through this page.</li>
+            <li><strong>Losing a data source never makes the rating more reassuring.</strong> If Wary cannot read a source, it keeps the last level or active trigger it successfully confirmed for as long as that information remains valid, and labels it as last confirmed rather than live. If Wary loses its saved memory altogether, it says so and rebuilds cautiously from the available official sources.</li>
             <li>This does not replace Emergency Alerts, the police, your council or the BBC.</li>
           </ul>
         </div>
@@ -466,7 +467,7 @@ footer p{max-width:50em;color:var(--hero-fg)}
           <h3>Privacy, in plain English</h3>
           <ul>
             <li><strong>No cookies.</strong> This site sets none.</li>
-            <li><strong>No ads, no analytics, no tracking.</strong> It loads no third-party scripts, fonts or images, and your browser is told to refuse them.</li>
+            <li><strong>No ads, no visitor profiling, no tracking.</strong> It loads no third-party scripts, fonts or images, and your browser is told to refuse them.</li>
             <li>Your household answers, ticks and display settings (text size, contrast and so on) are saved in your browser’s own storage, on this device only, so the page can remember them. They are never sent to us. “Change”, then “Delete my details”, removes them.</li>
             <li>If you add a postcode area, your browser asks two public services about it directly: postcodes.io, to find your area, and the Environment Agency, for flood warnings. They can see your internet address, as any website can. This site never sees it. Leave the postcode blank to avoid this.</li>
             <li>The page saves a copy of itself in your browser so it opens without internet.</li>
@@ -671,7 +672,7 @@ var first=true;
 function load(){
   return Promise.all([loadProfile(),loadFeed()]).then(function(r){
     if(window.THW_PREVIEW&&!r[0]) r[0]={adults:1,children:[9],pets:false,car:true,meds:false,powered:false,mobility:false,outcode:'',skipped:false,location:null};
-    applyProfile(r[0]); render(); loadLocal();
+    applyProfile(r[0]); render(); loadLocal(); pingCounterOnce();
     if(first){ first=false; if(!r[0]) openWizard(); }
   });
 }
@@ -725,6 +726,14 @@ function retryLookup(){
 /* ---------- rendering ---------- */
 function render(){
   renderBuild(); renderPress(); renderTagline(); renderChecks(); renderChanges(); renderNow(); renderKit(); renderStatus(); renderHousehold(); renderHero(); renderStart(); renderAreas(); renderLegend(); renderSignals(); renderLocal(); renderSources();
+}
+var counted=false;
+function pingCounterOnce(){
+  if(counted) return; counted=true;   // fires at most once per page life, however many times the page later re-renders
+  try{
+    var CU='{{COUNTER_URL}}';
+    if(CU){ fetch(CU,{method:'POST',keepalive:true,mode:'no-cors'}).catch(function(){}); }
+  }catch(e){}
 }
 function renderHousehold(){
   var b=document.getElementById('hh'), p=profile;
@@ -794,10 +803,6 @@ function renderHero(){
   root.parentNode.className='hero lv'+o.level;
   root.appendChild(h('p',{'class':'cap'},'Household level today: '+o.level+' of 5'));
   root.appendChild(word);
-  try{
-    var CU='{{COUNTER_URL}}';
-    if(CU){ fetch(CU,{method:'POST',keepalive:true,mode:'no-cors'}).catch(function(){}); }
-  }catch(e){}
   var rvw=h('p',{'class':'by',style:'margin-top:.5em',text:'Levels are calculated automatically from official data, checked automatically, normally about every 30 minutes.'});
   root.appendChild(h('div',{'class':'hero-grid'},ladder(o.level),h('div',null,h('p',{'class':'lead',text:L.hero}),drivers,rvw)));
 }
