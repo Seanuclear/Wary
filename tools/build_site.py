@@ -294,6 +294,21 @@ def main():
     # the page wraps this in a JS SINGLE-quoted string (var CU='...'), and JSON never escapes a literal apostrophe.
     # So a raw single quote from json.dumps would still break out of the string. Escape it explicitly afterwards.
     subs["{{COUNTER_URL}}"] = json.dumps(counter_url)[1:-1].replace("'", "\\'")
+
+    # How often the counter actually fires. 1 (the default) counts every visit -- unchanged behaviour. A number
+    # below 1, e.g. 0.1, counts roughly that fraction of visits and the displayed total should be read as "about
+    # this, times 1/rate" -- useful once a site is busy enough to bump into the free tier's daily write limit.
+    # A missing, non-numeric or out-of-range value counts everything: a broken setting must never silently hide
+    # visits, so it fails towards counting more, not less.
+    raw_rate = cfg.get("counter_sample", 1)
+    try:
+        counter_sample = float(raw_rate)
+        if not (0 < counter_sample <= 1):
+            raise ValueError
+    except (TypeError, ValueError):
+        print(f"warning: counter_sample '{raw_rate}' is not a number between 0 (exclusive) and 1; counting every visit instead", file=sys.stderr)
+        counter_sample = 1
+    subs["{{COUNTER_SAMPLE}}"] = repr(counter_sample)
     subs["{{COUNTER_CONNECT}}"] = (" " + counter_origin) if counter_origin else ""
     subs["{{COUNTER_NOTE}}"] = ("<li>This page counts visits with a single number: no cookie, no ID, and nothing that could tell one visit from "
         "another. The page sends no identifier or visitor information with the count. Cloudflare, which runs the counter, sees the request "
