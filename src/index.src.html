@@ -203,6 +203,7 @@ dialog#wiz::backdrop,dialog#disp::backdrop{background:rgba(0,0,0,.78)}
 /* start here */
 .start{border:3px solid var(--rule);background:var(--panel)}
 .start-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 20px;padding:16px 18px;border-bottom:3px solid var(--rule)}
+.start-done{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;font:700 16px/1.3 var(--body)}
 .meter{flex:1 1 220px;max-width:340px}
 .meter b{font-weight:700}
 .bar{height:12px;border:2px solid var(--rule);margin-top:6px;background:transparent}
@@ -314,7 +315,30 @@ footer p{max-width:50em;color:var(--hero-fg)}
 
 @media (max-width:520px){.trust{font-size:12px}.status{font-size:13px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+#areas-sec,#signals,#local,#about{background:var(--panel)}
+#backtotop{position:fixed;right:16px;bottom:16px;z-index:30;border:3px solid var(--rule);background:var(--paper);
+  color:var(--ink);font:700 14px/1 var(--body);padding:12px 15px;cursor:pointer;display:none}
+#backtotop.show{display:block}
+.acc>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.acc>summary::-webkit-details-marker{display:none}
+.acc>summary .achev{flex:none;width:14px;height:14px;border-right:4px solid var(--ink);border-bottom:4px solid var(--ink);
+  transform:rotate(45deg);transition:transform .2s ease}
+.acc[open]>summary .achev{transform:rotate(-135deg)}
+@media print{.acc{display:block!important}.acc:not([open]) *{display:none!important}}
+.print-only{display:none}
+#print-sheet h2{font-size:22px;margin:0 0 4px}
+#print-sheet .ps-date{font-size:13px;color:var(--ink2);margin:0 0 18px}
+#print-sheet .ps-kit{columns:2;column-gap:28px;margin:0 0 18px;font-size:14px;list-style:none;padding:0}
+#print-sheet .ps-kit li{break-inside:avoid;margin:0 0 6px}
+#print-sheet .ps-area{break-inside:avoid;margin:0 0 16px}
+#print-sheet .ps-area h3{font-size:16px;margin:0 0 6px;border-bottom:2px solid #000;padding-bottom:3px}
+#print-sheet .ps-area ul{list-style:none;margin:0;padding:0;columns:2;column-gap:24px;font-size:13px}
+#print-sheet .ps-area li{break-inside:avoid;margin:0 0 5px;padding-left:20px;text-indent:-20px}
 @media print{
+  body>*:not(#print-sheet){display:none!important}
+  #print-sheet{display:block!important;color:#000}
+  #backtotop{display:none!important}
+
   body{zoom:1!important}
   #now,.mast .status,.banner,.notice,.hhbar,.hero,#levels,#signals,#local,#method,.start,.btn,.filters,.chev,.area-signals,footer p.no-print{display:none!important}
   body{background:#fff;color:#000}
@@ -324,6 +348,8 @@ footer p{max-width:50em;color:var(--hero-fg)}
 </style>
 </head>
 <body>
+<div id="print-sheet" class="print-only" aria-hidden="true"></div>
+<button id="backtotop" type="button" aria-label="Back to top">↑ Top</button>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
     <pattern id="hz" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="12" height="12" fill="#B00020"/><rect width="6" height="12" fill="#000"/></pattern>
@@ -434,7 +460,8 @@ footer p{max-width:50em;color:var(--hero-fg)}
     </section>
 
     <section id="method" aria-labelledby="h-method">
-      <h2 id="h-method">How the ratings work</h2>
+      <details class="acc" open>
+      <summary><h2 id="h-method" style="margin:0">How the ratings work</h2><span class="achev" aria-hidden="true"></span></summary>
       <div class="two">
         <div class="box">
           <h3>The rules</h3>
@@ -446,7 +473,7 @@ footer p{max-width:50em;color:var(--hero-fg)}
             <li>Nothing from the press moves a level. Other automatic headlines are shown for information only.</li>
             <li><strong>Level 5</strong> is set automatically only for a very clear official signal that has held for over 6 hours: the official terrorism threat level at CRITICAL, or the government naming an attack on the UK while convening COBR. Until it has held, the area shows High. Real emergencies will reach you first through Emergency Alerts and the government, not through this page.</li>
             <li><strong>Losing a data source never makes the rating more reassuring.</strong> If Wary cannot read a source, it keeps the last level or active trigger it successfully confirmed for as long as that information remains valid, and labels it as last confirmed rather than live. If Wary loses its saved memory altogether, it says so and rebuilds cautiously from the available official sources.</li>
-            <li>This does not replace Emergency Alerts, the police, your council or the BBC.</li>
+            <li>Emergency Alerts, the police, your council and the BBC remain the places to go for anything urgent. This site is a slower, calmer supplement to them, never a substitute.</li>
           </ul>
         </div>
         <div class="box">
@@ -458,10 +485,12 @@ footer p{max-width:50em;color:var(--hero-fg)}
           </ul>
         </div>
       </div>
+      </details>
       </section>
 
     <section id="about" aria-labelledby="h-about">
-      <h2 id="h-about">About, privacy and sources</h2>
+      <details class="acc" open>
+      <summary><h2 id="h-about" style="margin:0">About, privacy and sources</h2><span class="achev" aria-hidden="true"></span></summary>
       <div class="two">
         <div class="box">
           <h3>Privacy, in plain English</h3>
@@ -503,6 +532,7 @@ footer p{max-width:50em;color:var(--hero-fg)}
       </div>
       <div class="box" style="margin-top:26px" id="changes-box"></div>
       <div class="box" style="margin-top:26px" id="src-box"></div>
+      </details>
     </section>
   </div>
 </main>
