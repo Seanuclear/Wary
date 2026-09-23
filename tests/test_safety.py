@@ -702,6 +702,7 @@ class SafetyLayout(unittest.TestCase):
         self.assertNotIn("innerHTML", block)
 
     def test_the_print_sheet_reuses_household_tailored_data(self):
+        self.assertIn("function kitItems(){", self.src, "the print sheet and on-screen kit must share one real household-tailored data source")
         fn = self.src[self.src.index("function buildPrintSheet(){"):self.src.index("document.getElementById('print').addEventListener")]
         self.assertIn("kitItems()", fn)
         self.assertIn("C.items.forEach", fn)
