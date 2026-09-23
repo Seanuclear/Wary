@@ -929,8 +929,7 @@ function renderNow(){
   }
   box.appendChild(wrap);
 }
-function renderKit(){
-  var g=document.getElementById('kit-grid'); g.textContent='';
+function kitItems(){
   var N=D.people, p=D.p, K=D.kids>0;
   var items=[['i-water','Water',N*9+' litres','3 litres each a day, for 3 days'],
     ['i-supply','Food','3 days','for '+(N===1?'one person':N+' people')+', little or no cooking'],
@@ -945,7 +944,11 @@ function renderKit(){
   if(D.baby) items.push(['i-child','Baby supplies','3 days','nappies, wipes, milk or formula']);
   if(K) items.push(['i-child','Comfort items',String(D.kids),'a torch and a book each']);
   if(p.pets) items.push(['i-paw','Pets','3 days','food, water, lead or carrier']);
-  items.forEach(function(t){ g.appendChild(h('div',{'class':'kt'},useIcon(t[0],'',58),h('b',{text:t[1]}),h('strong',{text:t[2]}),h('span',{text:t[3]}))); });
+  return items;
+}
+function renderKit(){
+  var g=document.getElementById('kit-grid'); g.textContent='';
+  kitItems().forEach(function(t){ g.appendChild(h('div',{'class':'kt'},useIcon(t[0],'',58),h('b',{text:t[1]}),h('strong',{text:t[2]}),h('span',{text:t[3]}))); });
 }
 function pips(level){
   var w=h('span',{'class':'pips',role:'img','aria-label':'Level '+level+' of 5'});
