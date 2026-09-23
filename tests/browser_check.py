@@ -35,6 +35,28 @@ COUNTER_HOST = counter_host()
 ALLOWED_HOSTS = {f"127.0.0.1:{PORT}"} | POSTCODE_HOSTS | ({COUNTER_HOST} if COUNTER_HOST else set())
 CORS = {"access-control-allow-origin": "*", "content-type": "application/json"}
 failures = []
+counter_hits = []  # every request the tests would have sent to the real counter, across the whole run
+
+
+def route_counter(ctx):
+    """Intercepts the counter host so no request from this script ever reaches the real, private Worker. A local
+    204 stands in for its real response, so the page's own fire-once logic behaves exactly as it would live."""
+    if not COUNTER_HOST:
+        return
+    ctx.route(f"https://{COUNTER_HOST}/**", lambda r: (counter_hits.append(r.request.url), r.fulfill(status=204, body=""))[-1] or None)
+
+
+def new_ctx(**kw):
+    ctx = browser_ref[0].new_context(**kw)
+    route_counter(ctx)
+    # Production sampling is deliberately random (for example counter_sample=0.1). In CI, force the
+    # sampling decision into the counted path so the one-ping regression check is deterministic.
+    if COUNTER_HOST and kw.get("java_script_enabled", True):
+        ctx.add_init_script("Math.random = function(){ return 0; };")
+    return ctx
+
+
+browser_ref = [None]
 
 
 def check(name, ok, detail=""):
@@ -80,9 +102,10 @@ def box(pg, n=0):
 
 with sync_playwright() as p:
     b = p.chromium.launch()
+    browser_ref[0] = b
 
     # 1. full flow with a postcode: what is contacted, and what is stored
-    ctx = b.new_context(viewport={"width": 1100, "height": 900})
+    ctx = new_ctx(viewport={"width": 1100, "height": 900})
     reqs = []
     ctx.on("request", lambda r: reqs.append(r.url))
     mock(ctx)
@@ -102,10 +125,13 @@ with sync_playwright() as p:
     check("1g no JavaScript errors", errs == [], errs)
     check("1h the promise line is on the page", "No cookies. No ads. No tracking." in pg.inner_text(".trust"))
     check("1i flood warnings are shown for the area", "River Cuckmere" in box(pg, 0), box(pg, 0)[:120])
+    if COUNTER_HOST:
+        check("1j the counter fires exactly once for a whole page life, and never reaches the real Worker directly",
+              len(counter_hits) == 1 and counter_hits[0].startswith("https://" + COUNTER_HOST), counter_hits)
     ctx.close()
 
     # 2. a blank postcode makes no third-party request at all
-    ctx = b.new_context()
+    ctx = new_ctx()
     reqs = []
     ctx.on("request", lambda r: reqs.append(r.url))
     mock(ctx)
@@ -120,7 +146,7 @@ with sync_playwright() as p:
     ctx.close()
 
     # 3. the flood service failing is said plainly, not shown as 'no warnings'
-    ctx = b.new_context()
+    ctx = new_ctx()
     mock(ctx, ea="fail")
     pg = ctx.new_page()
     pg.goto(BASE)
@@ -130,7 +156,7 @@ with sync_playwright() as p:
     ctx.close()
 
     # 4. Northern Ireland: England-only flood data is not presented as 'no warnings', and the NI note is separate
-    ctx = b.new_context()
+    ctx = new_ctx()
     mock(ctx, country="Northern Ireland", district="Belfast", county="", region="")
     pg = ctx.new_page()
     pg.goto(BASE)
@@ -142,7 +168,7 @@ with sync_playwright() as p:
     ctx.close()
 
     # 5. the live feed unavailable: a clearly labelled saved copy, never silently stale
-    ctx = b.new_context()
+    ctx = new_ctx()
     ctx.route("**/feed.json", lambda r: r.abort())
     pg = ctx.new_page()
     pg.goto(BASE)
@@ -151,7 +177,7 @@ with sync_playwright() as p:
     ctx.close()
 
     # 6. an editor's notice appears
-    ctx = b.new_context()
+    ctx = new_ctx()
 
     def notice(route):
         r = route.fetch()
@@ -166,7 +192,7 @@ with sync_playwright() as p:
     ctx.close()
 
     # 7. mobile: nothing forces sideways scrolling
-    ctx = b.new_context(viewport={"width": 390, "height": 844})
+    ctx = new_ctx(viewport={"width": 390, "height": 844})
     mock(ctx)
     pg = ctx.new_page()
     pg.goto(BASE)
@@ -175,7 +201,7 @@ with sync_playwright() as p:
     ctx.close()
 
     # 8. JavaScript switched off: the level and the six areas are still readable, with emergency links
-    ctx = b.new_context(java_script_enabled=False)
+    ctx = new_ctx(java_script_enabled=False)
     pg = ctx.new_page()
     pg.goto(BASE)
     body = pg.inner_text("body")
@@ -185,5 +211,7 @@ with sync_playwright() as p:
     ctx.close()
     b.close()
 
+if COUNTER_HOST:
+    print(f"\n(the real counter at {COUNTER_HOST} was intercepted throughout: {len(counter_hits)} local test ping(s), 0 sent to the real Worker)")
 print(f"\n{len(failures)} failure(s)" if failures else "\nAll browser checks passed")
 sys.exit(1 if failures else 0)
