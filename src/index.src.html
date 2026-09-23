@@ -762,7 +762,8 @@ function pingCounterOnce(){
   if(counted) return; counted=true;   // fires at most once per page life, however many times the page later re-renders
   try{
     var CU='{{COUNTER_URL}}';
-    if(CU){ fetch(CU,{method:'POST',keepalive:true,mode:'no-cors'}).catch(function(){}); }
+    var CR={{COUNTER_SAMPLE}};   // 1 = count every visit (the default). A fraction counts roughly that share.
+    if(CU&&Math.random()<CR){ fetch(CU,{method:'POST',keepalive:true,mode:'no-cors'}).catch(function(){}); }
   }catch(e){}
 }
 function renderHousehold(){
@@ -973,13 +974,22 @@ function updateMeter(){
   m.querySelector('.note').textContent=fdone===firsts.length?'Everything else can wait. Well done.':(done+' of '+all.length+' items ticked in total. One at a time is fine.');
   m.querySelector('i').style.width=Math.round(done/all.length*100)+'%';
 }
+var reviewingStart=false;
 function renderStart(){
   document.getElementById('h-start').textContent='Start with these '+ESSW;
   var box=document.getElementById('start-box'); box.textContent='';
+  var firsts=allItems().filter(function(i){return i.first;});
+  var fdone=firsts.filter(function(i){return checks[i.id];}).length;
+  if(fdone===firsts.length&&!reviewingStart){
+    var bar=h('div',{'class':'start-done'},
+      h('span',{text:'\u2713 All '+ESSW+' essentials done.'}),
+      h('button',{'class':'btn',type:'button',text:'Review',onclick:function(){ reviewingStart=true; renderStart(); }}));
+    box.appendChild(bar); return;
+  }
   var head=h('div',{'class':'start-head'},
     h('div',{'class':'meter',id:'meter',style:'max-width:none;flex:1 1 100%'},h('b',{style:'font-size:19px'}),h('div',{'class':'bar'},h('i')),h('div',{'class':'meta note',style:'margin-top:6px'})));
   var ul=h('ul',{'class':'checks'});
-  allItems().filter(function(i){return i.first;}).forEach(function(it){ var c=Object.assign({},it,{first:0}); ul.appendChild(checkbox(c)); });
+  firsts.forEach(function(it){ var c=Object.assign({},it,{first:0}); ul.appendChild(checkbox(c)); });
   box.appendChild(head); box.appendChild(ul); updateMeter();
 }
 function areaSignals(id){
@@ -1077,7 +1087,17 @@ function renderSignals(){
       h('div',null,t,(x.summary||also)?h('p',{text:x.summary+also}):null,h('div',{'class':'meta',style:'display:flex;flex-wrap:wrap;gap:4px 18px'},reliability(x.tier),h('span',{text:'From '+x.source}),x.auto?h('span',{text:'Automatic: the source\u2019s own headline and summary'}):null)),
       null);
   }
-  recent.forEach(function(x){ root.appendChild(row(x)); });
+  var SHOWN=4;
+  if(recent.length<=SHOWN){
+    recent.forEach(function(x){ root.appendChild(row(x)); });
+  } else {
+    recent.slice(0,SHOWN).forEach(function(x){ root.appendChild(row(x)); });
+    var rest=recent.slice(SHOWN), wrap=h('div',{style:'display:none'});
+    rest.forEach(function(x){ wrap.appendChild(row(x)); });
+    var btn=h('button',{'class':'sec',type:'button',style:'margin:18px 0 8px',text:'Show '+rest.length+' more signals'});
+    btn.addEventListener('click',function(){ wrap.style.display=''; btn.remove(); });
+    root.appendChild(btn); root.appendChild(wrap);
+  }
   if(back.length){ root.appendChild(h('div',{'class':'sep',text:'Earlier background'})); back.forEach(function(x){ root.appendChild(row(x)); }); }
 }
 function drawTimeline(list){
@@ -1303,9 +1323,33 @@ function wipeProfile(){
 document.getElementById('hh').addEventListener('click',openWizard);
 document.getElementById('wiz').addEventListener('cancel',function(e){ if(!profile) e.preventDefault(); });
 
+function buildPrintSheet(){
+  var root=document.getElementById('print-sheet'); root.textContent='';
+  root.appendChild(h('h2',{text:'{{NAME}}: household checklist'}));
+  root.appendChild(h('p',{'class':'ps-date',text:'Printed '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})+'. Tailored to the household you set up.'}));
+  var kul=h('ul',{'class':'ps-kit'});
+  kitItems().forEach(function(t){ kul.appendChild(h('li',{text:'\u2610 '+t[1]+': '+t[2]+' ('+t[3]+')'})); });
+  root.appendChild(kul);
+  ORDER.forEach(function(k){
+    var C=AREAS[k]; if(!C.items.length) return;
+    var full=(feed.areas||[]).filter(function(a){return a.id===k;})[0];
+    var sec=h('div',{'class':'ps-area'},h('h3',{text:(full&&full.name)||SHORT[k]}));
+    var ul=h('ul');
+    C.items.forEach(function(it){ ul.appendChild(h('li',{text:'\u2610 '+it.t})); });
+    sec.appendChild(ul); root.appendChild(sec);
+  });
+}
 document.getElementById('print').addEventListener('click',function(){
-  ORDER.forEach(function(k){ var p=document.getElementById('p-'+k); if(p) p.classList.add('open'); });
+  buildPrintSheet();
   try{ window.print(); }catch(e){}
+});
+window.addEventListener('scroll',function(){
+  var b=document.getElementById('backtotop'); if(!b) return;
+  if(window.scrollY>900) b.classList.add('show'); else b.classList.remove('show');
+},{passive:true});
+document.getElementById('backtotop').addEventListener('click',function(){
+  var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||document.documentElement.getAttribute('data-motion')==='reduce';
+  window.scrollTo({top:0,behavior:reduce?'auto':'smooth'});
 });
 var loadP=load();
 if(window.THW_PREVIEW){ window.__thw={ready:loadP,setFeed:function(f){ feed=f; render(); }}; }
