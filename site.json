@@ -13,6 +13,6 @@
   "hold_hours": 6,
   "bbc_headlines": true,
   "counter_url": "https://wary-counter.seanjudge.workers.dev/count",
-  "auto_levels": true,
-  "counter_sample": 0.1
+  "counter_sample": 0.1,
+  "auto_levels": true
 }
