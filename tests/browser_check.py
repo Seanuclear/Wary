@@ -128,6 +128,16 @@ with sync_playwright() as p:
     if COUNTER_HOST:
         check("1j the counter fires exactly once for a whole page life, and never reaches the real Worker directly",
               len(counter_hits) == 1 and counter_hits[0].startswith("https://" + COUNTER_HOST), counter_hits)
+    # The fridge-print button must build the tailored sheet before asking the browser to print. Stub window.print
+    # so CI never opens a real print dialog, then assert both parts of the click path actually happened.
+    before_print_errs = len(errs)
+    pg.evaluate("window.__waryPrinted=false; window.print=function(){ window.__waryPrinted=true; };")
+    pg.click("#print")
+    print_text = pg.text_content("#print-sheet") or ""
+    check("1k the fridge checklist button builds the household-tailored print sheet and calls print",
+          pg.evaluate("window.__waryPrinted") is True and "Water" in print_text and "Power banks" in print_text,
+          print_text[:180])
+    check("1l printing causes no JavaScript error", len(errs) == before_print_errs, errs[before_print_errs:])
     ctx.close()
 
     # 2. a blank postcode makes no third-party request at all
