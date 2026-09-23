@@ -515,7 +515,7 @@ class SafetyHandsOff(unittest.TestCase):
 class SafetyCounter(unittest.TestCase):
     """The optional visit counter must be truly anonymous, off by default, and never able to break the page."""
 
-    def build(self, counter_url=None, tmp=None):
+    def build(self, counter_url=None, tmp=None, counter_sample=None):
         import shutil, subprocess
         tmp = tmp or tempfile.mkdtemp()
         p = os.path.join(tmp, "p")
@@ -529,6 +529,8 @@ class SafetyCounter(unittest.TestCase):
                 "donate_url": "", "host": "GitHub Pages", "site_url": "", "auto_levels": True, "auto_headlines": True}
         if counter_url is not None:
             site["counter_url"] = counter_url
+        if counter_sample is not None:
+            site["counter_sample"] = counter_sample
         put(os.path.join(p, "site.json"), json.dumps(site))
         r = subprocess.run([sys.executable, os.path.join(p, "tools", "build_site.py")], capture_output=True, text=True, cwd=p, env=dict(os.environ, WARY_NOW=publish.iso(T0)))
         self.assertEqual(r.returncode, 0, r.stderr[-600:])
@@ -561,7 +563,7 @@ class SafetyCounter(unittest.TestCase):
 
     def test_the_ping_is_fire_and_forget_it_is_never_awaited_and_always_wrapped_in_try_catch(self):
         page, _ = self.build("https://wary-counter.example.workers.dev/count")
-        block = page[page.index("var CU="):page.index("var CU=") + 260]
+        block = page[page.index("var CU="):page.index("var CU=") + 420]
         self.assertIn("try{", page[max(0, page.index("var CU=") - 10):page.index("var CU=")])
         self.assertIn(".catch(function(){})", block, "a failed or blocked ping must be swallowed silently, never surfaced to the visitor")
         self.assertNotIn("await fetch", block)
@@ -603,6 +605,23 @@ class SafetyCounter(unittest.TestCase):
 
 
 
+    def test_sample_rate_defaults_to_counting_every_visit(self):
+        page, _ = self.build("https://wary-counter.example.workers.dev/count")
+        self.assertIn("var CR=1", page)
+
+    def test_a_configured_sample_rate_reaches_the_page(self):
+        page, _ = self.build("https://wary-counter.example.workers.dev/count", counter_sample=0.1)
+        self.assertIn("var CR=0.1", page)
+        line = page[page.index("var CU="):page.index("var CU=") + 250]
+        self.assertIn("Math.random()<CR", line)
+
+    def test_an_invalid_sample_rate_falls_back_to_counting_every_visit(self):
+        for bad in ("banana", 0, -0.5, 1.5, 2):
+            page, err = self.build("https://wary-counter.example.workers.dev/count", counter_sample=bad)
+            self.assertIn("var CR=1", page, bad)
+            self.assertIn("counter_sample", err, bad)
+
+
 class SafetyPress(unittest.TestCase):
     def test_press_headlines_can_never_move_any_level_or_notice(self):
         """Even the most alarming BBC headlines, with the strip switched ON, are only ever shown. They never change a rating."""
@@ -624,6 +643,89 @@ class SafetyPress(unittest.TestCase):
         p.feeds(items={}, terror="SEVERE")
         f = p.run(T0)
         self.assertEqual(f["press"], [])
+
+
+class SafetyLayout(unittest.TestCase):
+    """The layout changes: signals capped at 4, section shading, back-to-top, collapsible Method/About (open by
+    default), the checklist collapsing when complete, and the print sheet. Checked against the real source file."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = get(os.path.join(ROOT, "src", "index.src.html"))
+
+    def test_the_signals_list_shows_four_recent_by_default(self):
+        self.assertIn("var SHOWN=4;", self.src)
+
+    def test_background_signals_are_never_affected_by_the_cap(self):
+        fn = self.src[self.src.index("function renderSignals(){"):self.src.index("function drawTimeline(")]
+        self.assertIn("back.forEach(function(x){ root.appendChild(row(x)); })", fn)
+
+    def test_the_show_all_button_names_exactly_how_many_are_hidden(self):
+        fn = self.src[self.src.index("var SHOWN=4;"):self.src.index("if(back.length)")]
+        self.assertNotIn("list.length+' signals'", fn)
+        self.assertIn("rest.length", fn)
+        self.assertIn("' more signals'", fn)
+
+    def test_section_shading_is_limited_to_the_plain_list_sections(self):
+        rule = "#areas-sec,#signals,#local,#about{background:var(--panel)}"
+        self.assertIn(rule, self.src)
+        selector = rule.split("{")[0]
+        for should_not in ("#start", "#kit", "#levels"):
+            self.assertNotIn(should_not, selector)
+
+    def test_back_to_top_and_print_sheet_exist_before_the_script_that_wires_them_up(self):
+        script_pos = self.src.rindex("<script>")
+        for elem_id, needle in (("print-sheet", 'id="print-sheet"'), ("backtotop", 'id="backtotop"')):
+            pos = self.src.index(needle)
+            self.assertLess(pos, script_pos, f"#{elem_id} must appear before its script")
+        self.assertIn("#backtotop{display:none!important}", self.src)
+
+    def test_back_to_top_respects_reduced_motion(self):
+        handler = self.src[self.src.index("document.getElementById('backtotop').addEventListener"):]
+        self.assertIn("prefers-reduced-motion", handler)
+        self.assertIn("data-motion", handler)
+
+    def test_method_and_about_are_collapsible_and_open_by_default(self):
+        self.assertEqual(self.src.count('<details class="acc" open>'), 2)
+        self.assertIn('id="h-method"', self.src[self.src.index('<details class="acc" open>'):])
+
+    def test_the_checklist_collapses_only_once_every_essential_is_done(self):
+        self.assertIn("if(fdone===firsts.length&&!reviewingStart){", self.src)
+        self.assertIn("reviewingStart=true; renderStart();", self.src)
+
+    def test_the_print_sheet_is_the_only_thing_shown_when_printing(self):
+        self.assertIn("body>*:not(#print-sheet){display:none!important}", self.src)
+        self.assertIn("#print-sheet{display:block!important", self.src)
+
+    def test_the_print_sheet_uses_only_safe_text_insertion(self):
+        block = self.src[self.src.index("function buildPrintSheet(){"):self.src.index("function buildPrintSheet(){") + 1400]
+        self.assertNotIn("innerHTML", block)
+
+    def test_the_print_sheet_reuses_household_tailored_data(self):
+        fn = self.src[self.src.index("function buildPrintSheet(){"):self.src.index("document.getElementById('print').addEventListener")]
+        self.assertIn("kitItems()", fn)
+        self.assertIn("C.items.forEach", fn)
+
+    def test_the_print_button_builds_the_sheet_before_printing(self):
+        handler = self.src[self.src.index("document.getElementById('print').addEventListener"):]
+        handler = handler[:handler.index("});") + 3]
+        self.assertIn("buildPrintSheet()", handler)
+        self.assertIn("window.print()", handler)
+        self.assertNotIn("classList.add('open')", handler)
+
+    def test_the_why_paragraphs_never_regain_a_date_or_a_number(self):
+        found = re.findall(r"A\.(\w+)=\{icon:'[^']+',why:'((?:[^'\\]|\\.)*)'", self.src)
+        why = {k: json.loads('"' + v + '"') for k, v in found}
+        self.assertEqual(set(why), {"energy", "cyber", "comms", "security", "military", "supply"})
+        for k, v in why.items():
+            self.assertFalse(re.search(r"\d", v.replace("MI5", "")), (k, "contains a digit"))
+            for word in ("currently", "today", "recent", "recently", "this year", "last year", "latest", "at the moment", "right now"):
+                self.assertNotIn(word, v.lower(), (k, word))
+
+    def test_the_methodology_still_describes_the_hands_off_engine(self):
+        self.assertIn("Aware is the normal baseline", self.src)
+        self.assertIn("Losing a data source never makes the rating more reassuring", self.src)
+        self.assertNotIn("standing level</strong> that the editor can set", self.src)
 
 
 class SafetyPage(unittest.TestCase):
