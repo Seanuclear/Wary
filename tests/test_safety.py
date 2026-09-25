@@ -570,7 +570,7 @@ class SafetyCounter(unittest.TestCase):
 
     def test_the_counter_never_sends_a_cookie_and_the_page_never_reads_a_reply(self):
         page, _ = self.build("https://wary-counter.example.workers.dev/count")
-        block = page[page.index("var CU="):page.index("var CU=") + 260]
+        block = page[page.index("var CU="):page.index("var CU=") + 420]
         self.assertNotIn("credentials", block)                          # no credentials: 'include' — no cookie is ever sent
         self.assertIn("mode:'no-cors'", block)                          # the page cannot read anything back even if it tried
 
@@ -603,8 +603,6 @@ class SafetyCounter(unittest.TestCase):
         self.assertIn("sends no identifier or visitor information", on)
         self.assertNotIn("never receives anything else", on)   # too absolute a claim about a third party\'s own network
 
-
-
     def test_sample_rate_defaults_to_counting_every_visit(self):
         page, _ = self.build("https://wary-counter.example.workers.dev/count")
         self.assertIn("var CR=1", page)
@@ -620,6 +618,7 @@ class SafetyCounter(unittest.TestCase):
             page, err = self.build("https://wary-counter.example.workers.dev/count", counter_sample=bad)
             self.assertIn("var CR=1", page, bad)
             self.assertIn("counter_sample", err, bad)
+
 
 
 class SafetyPress(unittest.TestCase):
@@ -647,7 +646,8 @@ class SafetyPress(unittest.TestCase):
 
 class SafetyLayout(unittest.TestCase):
     """The layout changes: signals capped at 4, section shading, back-to-top, collapsible Method/About (open by
-    default), the checklist collapsing when complete, and the print sheet. Checked against the real source file."""
+    default), the checklist collapsing when complete, and the print sheet. Checked against the real source file,
+    not a rebuilt copy, since these are static markup/CSS/JS properties rather than data-driven behaviour."""
 
     @classmethod
     def setUpClass(cls):
@@ -657,12 +657,15 @@ class SafetyLayout(unittest.TestCase):
         self.assertIn("var SHOWN=4;", self.src)
 
     def test_background_signals_are_never_affected_by_the_cap(self):
+        """Earlier background items are a deliberately always-shown category; only the recent bucket collapses."""
         fn = self.src[self.src.index("function renderSignals(){"):self.src.index("function drawTimeline(")]
         self.assertIn("back.forEach(function(x){ root.appendChild(row(x)); })", fn)
 
     def test_the_show_all_button_names_exactly_how_many_are_hidden(self):
+        """Regression guard: this once said 'Show all N signals' using the WHOLE list's length (recent + the
+        background items already shown below), which could both overstate and understate what the click reveals."""
         fn = self.src[self.src.index("var SHOWN=4;"):self.src.index("if(back.length)")]
-        self.assertNotIn("list.length+' signals'", fn)
+        self.assertNotIn("list.length+' signals'", fn, "must not count background items that are already visible")
         self.assertIn("rest.length", fn)
         self.assertIn("' more signals'", fn)
 
@@ -671,19 +674,22 @@ class SafetyLayout(unittest.TestCase):
         self.assertIn(rule, self.src)
         selector = rule.split("{")[0]
         for should_not in ("#start", "#kit", "#levels"):
-            self.assertNotIn(should_not, selector)
+            self.assertNotIn(should_not, selector, should_not + " should not be shaded: it already sits in its own card")
 
     def test_back_to_top_and_print_sheet_exist_before_the_script_that_wires_them_up(self):
+        """Regression test for a real bug: #backtotop was once wired up by a script that ran before the button
+        existed in the document, because the button markup sat after the script instead of before it."""
         script_pos = self.src.rindex("<script>")
         for elem_id, needle in (("print-sheet", 'id="print-sheet"'), ("backtotop", 'id="backtotop"')):
             pos = self.src.index(needle)
-            self.assertLess(pos, script_pos, f"#{elem_id} must appear before its script")
-        self.assertIn("#backtotop{display:none!important}", self.src)
+            self.assertLess(pos, script_pos, f"#{elem_id} must appear in the HTML before the script that calls getElementById on it")
+        self.assertIn("#backtotop{display:none!important}", self.src, "must not appear on a printed page")
 
     def test_back_to_top_respects_reduced_motion(self):
         handler = self.src[self.src.index("document.getElementById('backtotop').addEventListener"):]
+        handler = handler[:handler.index("});") + 3]
         self.assertIn("prefers-reduced-motion", handler)
-        self.assertIn("data-motion", handler)
+        self.assertIn("data-motion", handler, "should also respect the site's own motion setting, not only the OS one")
 
     def test_method_and_about_are_collapsible_and_open_by_default(self):
         self.assertEqual(self.src.count('<details class="acc" open>'), 2)
@@ -701,20 +707,21 @@ class SafetyLayout(unittest.TestCase):
         block = self.src[self.src.index("function buildPrintSheet(){"):self.src.index("function buildPrintSheet(){") + 1400]
         self.assertNotIn("innerHTML", block)
 
-    def test_the_print_sheet_reuses_household_tailored_data(self):
-        self.assertIn("function kitItems(){", self.src, "the print sheet and on-screen kit must share one real household-tailored data source")
+    def test_the_print_sheet_is_built_from_the_same_household_tailored_data_as_the_rest_of_the_page(self):
         fn = self.src[self.src.index("function buildPrintSheet(){"):self.src.index("document.getElementById('print').addEventListener")]
-        self.assertIn("kitItems()", fn)
-        self.assertIn("C.items.forEach", fn)
+        self.assertIn("kitItems()", fn, "must reuse the same tailored kit quantities, not a separate copy")
+        self.assertIn("C.items.forEach", fn, "must reuse each area's own real checklist items")
 
     def test_the_print_button_builds_the_sheet_before_printing(self):
         handler = self.src[self.src.index("document.getElementById('print').addEventListener"):]
         handler = handler[:handler.index("});") + 3]
         self.assertIn("buildPrintSheet()", handler)
         self.assertIn("window.print()", handler)
-        self.assertNotIn("classList.add('open')", handler)
+        self.assertNotIn("classList.add('open')", handler, "the old approach of force-opening every panel should be gone")
 
     def test_the_why_paragraphs_never_regain_a_date_or_a_number(self):
+        """The exact category of bug that actually happened once: a wording fix got silently reverted by an
+        unrelated commit. This is a permanent, blocking guard against that ever landing unnoticed again."""
         found = re.findall(r"A\.(\w+)=\{icon:'[^']+',why:'((?:[^'\\]|\\.)*)'", self.src)
         why = {k: json.loads('"' + v + '"') for k, v in found}
         self.assertEqual(set(why), {"energy", "cyber", "comms", "security", "military", "supply"})
@@ -724,9 +731,237 @@ class SafetyLayout(unittest.TestCase):
                 self.assertNotIn(word, v.lower(), (k, word))
 
     def test_the_methodology_still_describes_the_hands_off_engine(self):
+        """The other half of the same regression: the methodology list itself must keep describing what the
+        engine actually does, not the old editor-baseline model."""
         self.assertIn("Aware is the normal baseline", self.src)
         self.assertIn("Losing a data source never makes the rating more reassuring", self.src)
         self.assertNotIn("standing level</strong> that the editor can set", self.src)
+
+
+class Safety1983Mode(unittest.TestCase):
+    """The '1983 mode' easter egg is a display skin only: it must never change wording, numbers, ratings or
+    behaviour, must be a proper Display-settings option mutually exclusive with light/dark/system (not an
+    additive overlay that can combine with them), and must not introduce any third-party network request."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = get(os.path.join(ROOT, "src", "index.src.html"))
+
+    def test_1983_is_a_real_theme_choice_alongside_system_light_dark(self):
+        self.assertIn("['1983','1984 mode']", self.src)
+        opts_block = self.src[self.src.index("var DISP_OPTS=["):self.src.index("var DISP_OPTS=[") + 400]
+        self.assertIn("['theme','Colour'", opts_block)
+        self.assertIn("'system'", opts_block)
+        self.assertIn("'light'", opts_block)
+        self.assertIn("'dark'", opts_block)
+        self.assertIn("'1983'", opts_block)
+
+    def test_theme_attribute_setter_is_generic_not_hardcoded_to_light_dark(self):
+        """applyDisplay() must set data-theme from whatever value is chosen, so a new theme value (like '1983')
+        automatically becomes its own exclusive attribute state rather than needing special-case wiring."""
+        fn = self.src[self.src.index("function applyDisplay(){"):self.src.index("function applyDisplay(){") + 400]
+        self.assertIn("if(d.theme==='system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',d.theme);", fn)
+
+    def test_dark_mode_media_query_never_overrides_1983_mode(self):
+        """Regression guard for the real bug reported: system/prefers-color-scheme dark mode used to leak its
+        colours into 1983 mode (making header text unreadable) because the dark-mode selector only excluded
+        data-theme="light", not data-theme="1983". Both places that key off prefers-color-scheme must exclude it."""
+        self.assertIn(':root:not([data-theme="light"]):not([data-theme="1983"]){', self.src)
+        self.assertIn(':not([data-theme="light"]):not([data-theme="1983"]) .logo', self.src)
+
+    def test_1983_mode_has_its_own_exclusive_theme_block(self):
+        self.assertIn(':root[data-theme="1983"]{', self.src)
+
+    def test_1983_mode_introduces_no_third_party_request(self):
+        """The site's core privacy promise is no third-party scripts, fonts or images. 1983 mode must reuse the
+        site's own system-font stack rather than fetching a webfont (e.g. from Google Fonts)."""
+        p83_block = self.src[self.src.index('/* ---------- 1983 mode'):self.src.index('</style>')]
+        for needle in ("googleapis", "gstatic", "https://"):
+            self.assertNotIn(needle, p83_block, needle + " must not appear in the 1983-mode styling")
+        # The only "http://" allowed is the standard, inert SVG XML namespace inside the inline data: URI.
+        for line in p83_block.splitlines():
+            if "http://" in line:
+                self.assertIn("data:image/svg+xml", line)
+                self.assertIn("http://www.w3.org/2000/svg", line)
+        self.assertNotIn("fonts.googleapis", self.src)
+        self.assertNotIn("loadP83Fonts", self.src, "font-loading machinery should not exist; 1983 mode must use only system fonts")
+
+    def test_1983_mode_does_not_touch_the_why_paragraphs_or_methodology(self):
+        """The skin-only rule: reuse the same content guard as SafetyLayout to prove the 1983-mode CSS/JS
+        addition sits alongside the real content without altering it."""
+        found = re.findall(r"A\.(\w+)=\{icon:'[^']+',why:'((?:[^'\\]|\\.)*)'", self.src)
+        why = {k: json.loads('"' + v + '"') for k, v in found}
+        self.assertEqual(set(why), {"energy", "cyber", "comms", "security", "military", "supply"})
+        self.assertIn("Aware is the normal baseline", self.src)
+
+    def test_the_flourish_and_tagline_swap_is_display_only_not_a_content_change(self):
+        """The real tagline text still appears exactly once in its normal, always-rendered slot; the 1983-mode
+        flourish is decorative flavour text, marked aria-hidden so it is never announced as if it were real
+        content, and both elements are hidden outside 1983 mode."""
+        self.assertIn('<p class="tagline">{{TAGLINE}}</p>', self.src)
+        self.assertIn('<p class="flourish" aria-hidden="true">How to keep you and your family safe</p>', self.src)
+        self.assertIn(".flourish{display:none}", self.src)
+        self.assertIn(':root[data-theme="1983"] .tagline{display:none}', self.src)
+        self.assertIn(':root[data-theme="1983"] .flourish{display:block', self.src)
+
+    def test_the_centred_mark_is_decorative_and_hidden_outside_1983_mode(self):
+        self.assertIn(".p83-centremark{display:none}", self.src)
+        self.assertIn('<svg class="p83-centremark" viewBox="0 44 512 419" width="512" height="419" aria-hidden="true" focusable="false">', self.src)
+        self.assertIn(':root[data-theme="1983"] .p83-centremark{display:block', self.src)
+
+    def test_the_paper_texture_overlay_is_subtle_not_an_obscuring_pattern(self):
+        """Two earlier attempts at a printed-paper texture were dropped: an feTurbulence filter that rendered as
+        invisible in some browsers, then a bold repeating dot-halftone that read as noise obscuring the page.
+        The current version uses a real (generated) paper-grain image, blended at low opacity, so it must never
+        regress to a loud, geometric or invisible overlay."""
+        block = self.src[self.src.index('/* ---------- 1983 mode'):self.src.index('</style>')]
+        self.assertNotIn("feTurbulence", block)
+        rule = self.src[self.src.index(':root[data-theme="1983"] body::after{'):]
+        rule = rule[:rule.index('}') + 1]
+        self.assertIn("mix-blend-mode:multiply", rule)
+        self.assertIn("pointer-events:none", rule)
+        self.assertNotIn("url(#p83dots)", rule, "the loud dot-halftone pattern must not be reused for the page-wide overlay")
+        m = re.search(r"opacity:\.?(\d+)", rule)
+        self.assertIsNotNone(m, "the overlay must set an explicit opacity")
+        self.assertLessEqual(float("0." + m.group(1)), 0.5, "opacity must stay low enough to read as texture, not as a visible layer")
+        self.assertIn("@media print{:root[data-theme=\"1983\"] body::after{display:none}}", self.src)
+
+    def test_the_paper_texture_image_is_a_same_origin_asset(self):
+        img_path = os.path.join(ROOT, "src", "1983-paper.png")
+        self.assertTrue(os.path.isfile(img_path), "src/1983-paper.png must exist so the build can copy it into site/")
+        self.assertIn("url('1983-paper.png')", self.src)
+
+    def test_the_centred_mark_has_explicit_intrinsic_dimensions(self):
+        """Regression guard for a real bug: an <svg> with only a viewBox and no width/height attribute falls
+        back to the UA default intrinsic size in some browsers (notably Safari), which can make CSS width:auto
+        sizing clip the artwork down to a small fragment instead of scaling the whole mark."""
+        tag = self.src[self.src.index('<svg class="p83-centremark"'):]
+        tag = tag[:tag.index('>') + 1]
+        self.assertIn('width="512"', tag)
+        self.assertIn('height="419"', tag)
+
+    def test_the_centred_mark_is_drawn_inline_with_clearance_on_every_side(self):
+        """Regression guard for a long-running real bug. The mark used to be a <symbol> with its own viewBox,
+        placed via <use> inside an <svg> with a second viewBox. A <use> of a symbol creates a viewport at (0,0)
+        in the outer svg's coordinates, so whenever the outer viewBox did not start at 0,0 the whole drawing sat
+        offset inside its box and was cut off at the edges, whatever sizes the two viewBoxes were given.
+        It is now drawn directly inside one svg, and that viewBox leaves at least 20 units of clear space
+        beyond the painted artwork (x 20..492, y 64..443.04 including the 36-wide outer stroke) on every side."""
+        self.assertNotIn('id="p83-mark"', self.src)
+        self.assertNotIn('href="#p83-mark"', self.src)
+        tag = self.src[self.src.index('<svg class="p83-centremark"'):]
+        body = tag[:tag.index('</svg>')]
+        m = re.search(r'viewBox="([\d.\-]+) ([\d.\-]+) ([\d.\-]+) ([\d.\-]+)"', body)
+        x, y, w, h = (float(v) for v in m.groups())
+        painted = (20.0, 64.0, 492.0, 443.04)
+        self.assertLessEqual(x, painted[0] - 20)
+        self.assertLessEqual(y, painted[1] - 20)
+        self.assertGreaterEqual(x + w, painted[2] + 20)
+        self.assertGreaterEqual(y + h, painted[3] + 19.9)
+        self.assertIn('stroke-width="36"', body)
+        self.assertNotIn('<use', body)
+
+    def test_the_centred_mark_is_deliberately_hidden_below_780px(self):
+        """The mark is only shown from 780px up: below that, the header's own text (tagline/flourish/trust
+        lines) wraps onto multiple lines and fills the row, leaving no clear space for the centred mark to sit
+        in without overlapping live text. This is a deliberate layout trade-off, not a bug — confirmed visually
+        across 390-780px, the mark collides with header text at every width below 780px."""
+        self.assertIn("@media (min-width:780px){", self.src)
+        block = self.src[self.src.index("@media (min-width:780px){"):]
+        block = block[:block.index("}\n}") + 3]
+        self.assertIn(':root[data-theme="1983"] .p83-centremark{display:block', block)
+
+    def test_1983_mode_combined_with_calm_view_keeps_hero_text_legible(self):
+        """Regression guard for a real bug: 'calm view' repoints --hero-fg to the dark --ink colour (assuming a
+        light hero background). 1983 mode's hero has a dark photographic background, and its masthead is always
+        a dark gradient (independent of calm view) — both produced dark text on a dark background when combined
+        with calm view. The hero must drop its photo and fall back to the flat (light, in 1983 mode) --hero-bg
+        colour, and the masthead must keep its own light cream text, whenever calm view is also active."""
+        self.assertIn(':root[data-theme="1983"][data-view="calm"] .hero{', self.src)
+        rule = self.src[self.src.index(':root[data-theme="1983"][data-view="calm"] .hero{'):]
+        rule = rule[:rule.index('}') + 1]
+        self.assertIn("background-image:none", rule)
+        self.assertIn(':root[data-theme="1983"][data-view="calm"] .mast{', self.src)
+        mast_rule = self.src[self.src.index(':root[data-theme="1983"][data-view="calm"] .mast{'):]
+        mast_rule = mast_rule[:mast_rule.index('}') + 1]
+        self.assertIn("--hero-fg:#E9E1C6", mast_rule)
+
+    def test_the_centred_mark_has_no_stray_transform_clipping_it(self):
+        """Regression guard for a real bug: a transform="translate(-14 -55)" copy-pasted from the full logo
+        (whose own viewBox is a much larger "0 0 1119 390", where that offset is needed) shifted the artwork
+        out of the mark's own box."""
+        tag = self.src[self.src.index('<svg class="p83-centremark"'):]
+        self.assertNotIn("translate(-14", tag[:tag.index('</svg>')])
+
+    ILLUSTRATIONS = ("power", "food", "firstaid", "documents", "tv", "warden")
+
+    def test_the_illustrations_only_exist_in_1983_mode(self):
+        """The Protect-and-Survive-style illustrations are a 1983-mode easter egg. They are hidden by default,
+        and their image files are attached only by 1983-mode selectors, as CSS backgrounds, so browsers in any
+        other theme never download them."""
+        self.assertIn(".p83-ill{display:none}", self.src)
+        self.assertIn(':root[data-theme="1983"] .p83-ill{display:block', self.src)
+        for n in self.ILLUSTRATIONS:
+            ref = f"url('1983-ill-{n}.jpg')"
+            self.assertEqual(self.src.count(ref), 1, n)
+            line = [l for l in self.src.splitlines() if ref in l][0]
+            self.assertTrue(line.startswith(f':root[data-theme="1983"] .p83-ill-{n}{{'), line)
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, "src", f"1983-ill-{n}.jpg")), n)
+        self.assertNotIn("<img", self.src[self.src.index('<header class="mast">'):].split("<script")[0],
+                         "illustrations must not be <img> tags, which download even when hidden")
+
+    def test_the_illustrations_are_decorative_and_hidden_in_calm_view_and_print(self):
+        for n in self.ILLUSTRATIONS:
+            self.assertIn(f'<div class="p83-ill p83-ill-{n}" aria-hidden="true"></div>', self.src)
+        self.assertIn(':root[data-theme="1983"][data-view="calm"] .p83-ill{display:none}', self.src)
+        self.assertIn("@media print{.p83-ill{display:none!important}}", self.src)
+
+    def test_the_illustrations_sit_where_they_were_asked_for(self):
+        def at(needle):
+            return self.src.index(needle)
+        ill = lambda n: at(f'p83-ill-{n}" aria-hidden')
+        self.assertLess(at('id="start-box"'), ill("power")); self.assertLess(ill("power"), at('id="kit"'))
+        self.assertLess(at('id="h-kit"'), ill("food")); self.assertLess(ill("food"), at('id="kit-grid"'))
+        self.assertLess(at('id="kit-grid"'), ill("firstaid")); self.assertLess(ill("firstaid"), at('id="areas-sec"'))
+        self.assertLess(at('id="print"'), ill("documents")); self.assertLess(ill("documents"), at('id="levels"'))
+        self.assertLess(at('id="method"'), ill("tv")); self.assertLess(ill("tv"), at('id="about"'))
+        self.assertLess(at('Anti-Terrorist Hotline'), ill("warden")); self.assertLess(ill("warden"), at('</footer>'))
+
+    def test_the_household_level_caption_is_legible_over_the_skyline(self):
+        """Real bug: the 'Household level today' caption used the burnt-orange --hero-dim colour, which all but
+        vanished against the orange sky of the 1983-mode hero photo. It is real information, so it must be cream."""
+        self.assertIn(':root[data-theme="1983"] .hero .cap{color:var(--hero-fg)', self.src)
+
+    def test_the_illustrations_are_centred(self):
+        rules = [l for l in self.src.splitlines() if l.startswith(':root[data-theme="1983"] .p83-ill') and "margin:" in l]
+        rules.append(self.src[self.src.index(':root[data-theme="1983"] .p83-ill{'):].split("}")[0])
+        for r in rules:
+            m = re.search(r"margin:([^;}]+)", r)
+            self.assertIn("auto", m.group(1), r)
+
+    def test_1983_footer_uses_the_masthead_gradient_and_keeps_cream_text_even_in_calm_view(self):
+        """The footer is always a dark orange-to-black wash in 1983 mode, so its text colour must not follow calm
+        view's switch to dark --ink text (that would be dark on dark, the same bug the masthead and hero had)."""
+        rule = self.src[self.src.index(':root[data-theme="1983"] footer{'):]
+        rule = rule[:rule.index('}') + 1]
+        self.assertIn("linear-gradient(180deg,#B5451A", rule)
+        self.assertIn("--hero-fg:#E9E1C6", rule)
+
+    def test_the_hero_skyline_image_is_a_same_origin_asset_not_a_remote_fetch(self):
+        """The hero background image must be a plain relative filename (built alongside the page and served
+        same-origin), never an absolute or https:// URL, so it stays inside the site's own zero-third-party
+        request architecture and the existing CSP (img-src 'self' data:)."""
+        self.assertIn("url('1983-skyline.jpg')", self.src)
+        img_path = os.path.join(ROOT, "src", "1983-skyline.jpg")
+        self.assertTrue(os.path.isfile(img_path), "src/1983-skyline.jpg must exist so the build can copy it into site/")
+
+    def test_the_hero_skyline_background_only_applies_in_1983_mode(self):
+        rule = self.src[self.src.index(':root[data-theme="1983"] .hero{'):]
+        rule = rule[:rule.index('}') + 1]
+        self.assertIn("background-image", rule)
+        self.assertIn("background-size:cover", rule)
+        self.assertNotIn(".hero{background-image", self.src.split(':root[data-theme="1983"]')[0],
+                          "the photographic background must not leak into the default (non-1983) hero styling")
 
 
 class SafetyPage(unittest.TestCase):
