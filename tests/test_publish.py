@@ -1407,10 +1407,16 @@ class GridFalseAlarm(unittest.TestCase):
             c = self.grid(text, kind)
             self.assertEqual(c["state"], "alert", text)
             t = publish.detect_triggers([], {"grid": c}, self.now)
-            self.assertEqual([x["rule"] for x in t], ["grid-demand-control"], text)
+            self.assertEqual([x["rule"] for x in t], ["grid-demand-control-v2"], text)
 
     def test_the_warning_type_field_alone_is_enough(self):
         self.assertEqual(self.grid("See NESO for details.", "DEMAND CONTROL IMMINENT")["state"], "alert")
+
+    def test_a_routine_margin_notice_does_not_escalate_just_for_naming_the_escalation_stages(self):
+        text = REAL_EMN_2026_09_27 + " If conditions worsen, HIGH RISK OF DEMAND REDUCTION or DEMAND CONTROL IMMINENT may be issued."
+        c = self.grid(text, "ELECTRICITY MARGIN NOTICE")
+        self.assertEqual(c["state"], "notice")
+        self.assertEqual(publish.detect_triggers([], {"grid": c}, self.now), [])
 
     def test_a_stored_false_alarm_is_discarded_at_once_not_kept_for_72_hours(self):
         at = self.now - timedelta(hours=7)
@@ -1418,6 +1424,15 @@ class GridFalseAlarm(unittest.TestCase):
                   "areas": ["energy"], "level": 4, "why": "x", "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS",
                   "published": publish.iso(at), "accepted": publish.iso(at), "last_seen": publish.iso(at),
                   "expires": publish.iso(at + timedelta(hours=72))}}
+        self.assertEqual(publish.apply_triggers([], stored, self.now), {})
+        self.assertEqual(len(publish.retired_triggers(stored)), 1)
+
+    def test_the_first_correction_trigger_is_also_retired_at_once(self):
+        at = self.now - timedelta(hours=1)
+        stored = {"grid-demand-control:https://bmrs.elexon.co.uk/": {"id": "grid-demand-control:https://bmrs.elexon.co.uk/",
+                  "rule": "grid-demand-control", "areas": ["energy"], "level": 4, "why": "x",
+                  "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS", "published": publish.iso(at),
+                  "accepted": publish.iso(at), "last_seen": publish.iso(at), "expires": publish.iso(at + timedelta(hours=72))}}
         self.assertEqual(publish.apply_triggers([], stored, self.now), {})
         self.assertEqual(len(publish.retired_triggers(stored)), 1)
 
