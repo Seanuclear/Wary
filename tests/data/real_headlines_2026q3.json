@@ -1,0 +1,279 @@
+{
+ "about": "Real official headlines (GOV.UK departments and NCSC), 28 Jun to 28 Sep 2026, chosen because they touch the words the automatic level rules look for. Open Government Licence / NCSC public feed. 3,566 headlines were checked in total.",
+ "checked": 3566,
+ "items": [
+  {
+   "title": "FCDO summons Iranian Chargé d'Affaires over attack on Iran international journalist",
+   "summary": "The Foreign, Commonwealth and Development Office has today summoned the Iranian Chargé d'Affaires in London in response to the sentencing of two individuals for their role in the attack on an Iran International journalist in 2024.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/news/fcdo-summons-iranian-charge-daffaires-over-attack-on-iran-international-journalist",
+   "date": "2026-07-07"
+  },
+  {
+   "title": "Russia is using civilian suffering as a coercive tool: UK statement to the OSCE",
+   "summary": "Ambassador Holland condemned Russia’s intensified missile and drone strikes on Ukrainian cities, highlighting civilian casualties and damage to humanitarian infrastructure. Russia has rejected opportunities for a ceasefire and is using continued attacks to exert pressure.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/russia-is-using-civilian-suffering-as-a-coercive-tool-uk-statement-to-the-osce",
+   "date": "2026-07-09"
+  },
+  {
+   "title": "E3 Statement on Iranian Attacks",
+   "summary": "A statement by the E3 (UK, France & Germany) on Iranian attacks  in the Strait of Hormuz and countries in the region.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/news/e3-statement-on-iranian-attacks",
+   "date": "2026-07-12"
+  },
+  {
+   "title": "Profile: GRU cyber and hybrid threat operations",
+   "summary": "Factsheet which exposes the Armed Forces of the Russian Federation (GRU) cyber and information operations against the UK and allies.",
+   "source": "GOV.UK: Home Office",
+   "url": "https://www.gov.uk/government/publications/profile-gru-cyber-and-hybrid-threat-operations",
+   "date": "2026-07-13"
+  },
+  {
+   "title": "Profile: GRU cyber and hybrid threat operations",
+   "summary": "Factsheet which exposes the Armed Forces of the Russian Federation (GRU) cyber and information operations against the UK and allies.",
+   "source": "GOV.UK: Cabinet Office",
+   "url": "https://www.gov.uk/government/publications/profile-gru-cyber-and-hybrid-threat-operations",
+   "date": "2026-07-13"
+  },
+  {
+   "title": "Profile: GRU cyber and hybrid threat operations",
+   "summary": "Factsheet which exposes the Armed Forces of the Russian Federation (GRU) cyber and information operations against the UK and allies.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/publications/profile-gru-cyber-and-hybrid-threat-operations",
+   "date": "2026-07-13"
+  },
+  {
+   "title": "UK and Allies urge critical sectors to improve defences against Russian intelligence targeting",
+   "summary": "New advisory highlights Russian state cyber actors’ global exploitation of poorly configured routers",
+   "source": "NCSC news and reports",
+   "url": "https://www.ncsc.gov.uk/news/uk-and-allies-urge-critical-sectors-to-improve-defences-against-russian-intelligence-targeting",
+   "date": "2026-07-13"
+  },
+  {
+   "title": "UK sanctions Iran-linked criminal group that publicly claimed responsibility for recent attacks on Jewish locations",
+   "summary": "Statement from the Foreign Secretary on the sanctioning of Islamic Movement of Companions of the Right (IMCR).",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/news/uk-sanctions-iran-linked-criminal-group-that-publicly-claimed-responsibility-for-recent-attacks-on-jewish-locations",
+   "date": "2026-07-13"
+  },
+  {
+   "title": "FCDO summons Iranian Chargé d'Affaires over Islamic Revolutionary Guard Corps Qods Force’s role in directing attacks by proxy groups",
+   "summary": "The Foreign, Commonwealth and Development Office has today summoned the Iranian Chargé d'Affaires in London in response to the Islamic Revolutionary Guard Corps Qods Force’s (IRGC-QF) role in directing proxy groups to carry out a series of attacks across Europe.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/news/fcdo-summons-iranian-charge-daffaires-over-attacks-by-proxy-groups",
+   "date": "2026-07-14"
+  },
+  {
+   "title": "Bloodborne virus (BBV) related infection control breaches: management toolkit",
+   "summary": "This guidance supports risk assessment, investigation and management of infection control breaches, with a focus on BBV transmission.",
+   "source": "GOV.UK: UK Health Security Agency",
+   "url": "https://www.gov.uk/government/publications/bloodborne-virus-bbv-related-infection-control-breaches-management-toolkit",
+   "date": "2026-07-15"
+  },
+  {
+   "title": "Model Action Plan for Responding to Significant Data Breaches",
+   "summary": "The Model Action Plan is a cross-government framework for all departments and arms-length bodies to follow when responding to significant personal data breaches",
+   "source": "GOV.UK: Cabinet Office",
+   "url": "https://www.gov.uk/government/publications/model-action-plan-for-responding-to-significant-data-breaches",
+   "date": "2026-07-15"
+  },
+  {
+   "title": "Prime Minister commits €300 million to fund fighter jets for Ukraine - backing British jobs and bolstering Ukraine’s defence",
+   "summary": "Prime Minister Keir Starmer has today announced that the UK is investing €300 million to help deliver advanced Swedish Gripen fighter jets to Ukraine, strengthening Ukraine’s ability to defend its skies from Russian attacks, while supporting thousands of highly skilled jobs across the UK. ",
+   "source": "GOV.UK: Ministry of Defence",
+   "url": "https://www.gov.uk/government/news/prime-minister-commits-300-million-to-fund-fighter-jets-for-ukraine-backing-british-jobs-and-bolstering-ukraines-defence",
+   "date": "2026-07-16"
+  },
+  {
+   "title": "Russia’s aggression is the root cause of insecurity: UK statement to the OSCE",
+   "summary": "Ambassador Holland said Russia alone caused this war through its illegal use of force against Ukraine. NATO and international support for Ukraine are defensive responses to Russian aggression. Russia should stop attacks, accept a ceasefire and pursue a just, lasting peace.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/russias-aggression-is-the-root-cause-of-insecurity-uk-statement-to-the-osce",
+   "date": "2026-07-16"
+  },
+  {
+   "title": "First groups designated as threat to national security",
+   "summary": "The IRGC, IMCR, and the GRU Volunteer Corps have now been formally designated as threats to national security under new state threats powers.",
+   "source": "GOV.UK: Home Office",
+   "url": "https://www.gov.uk/government/news/first-groups-designated-as-threat-to-national-security",
+   "date": "2026-07-17"
+  },
+  {
+   "title": "Russia’s aerial attacks increase the risk of wider escalation: UK statement to the OSCE",
+   "summary": "UK Senior Military Adviser, Colonel Joby Rimmer, warns that Russia’s missile and drone attacks endanger civilians, violate neighbouring states’ airspace and increase the risk of miscalculation and escalation across Europe.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/russias-aerial-attacks-increase-the-risk-of-wider-escalation-uk-statement-to-the-osce",
+   "date": "2026-07-22"
+  },
+  {
+   "title": "The Oil and Pipelines Agency accounts 2019 to 2026",
+   "summary": "The Oil and Pipelines Agency accounts 2019 to 2026.",
+   "source": "GOV.UK: Ministry of Defence",
+   "url": "https://www.gov.uk/government/publications/the-oil-and-pipelines-agency-account-2019-to-2020",
+   "date": "2026-07-22"
+  },
+  {
+   "title": "ODIHR’s latest report adds to the growing evidence of Russia’s contemptible conduct in Ukraine: UK statement to the OSCE",
+   "summary": "The UK condemned Russia’s ongoing aerial attacks on Ukraine and cited ODIHR’s latest report which shows evidence of civilian harm, arbitrary detention and efforts to erase Ukrainian identity in the temporarily occupied territories.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/odihrs-latest-report-adds-to-the-growing-evidence-of-russias-contemptible-conduct-in-ukraine-uk-statement-to-the-osce",
+   "date": "2026-07-23"
+  },
+  {
+   "title": "UK and partners expose Russian state-supported actors for new ‘zero-click’ phishing campaign targeting Western organisations",
+   "summary": "GCHQ’s National Cyber Security Centre and international partners issue warning as ‘LAUNDRY BEAR’ cyber threat group exposed for targeted phishing campaign",
+   "source": "NCSC news and reports",
+   "url": "https://www.ncsc.gov.uk/news/uk-and-partners-expose-russian-state-supported-actors-for-new-zero-click-phishing-campaign",
+   "date": "2026-07-23"
+  },
+  {
+   "title": "When cyber attacks happen: helping organisations recover",
+   "summary": "A highly disruptive incident can feel overwhelming. New guidance provides a framework for response and recovery.",
+   "source": "NCSC news and reports",
+   "url": "https://www.ncsc.gov.uk/blogs/when-cyber-attacks-happen-helping-organisations-recover",
+   "date": "2026-07-28"
+  },
+  {
+   "title": "Biodiversity gain statements for nationally significant infrastructure projects",
+   "summary": "These statements set out the biodiversity net gain (BNG) requirements for nationally significant infrastructure projects (NSIPs).",
+   "source": "GOV.UK: Environment, Food and Rural Affairs",
+   "url": "https://www.gov.uk/government/collections/biodiversity-gain-statements-for-nationally-significant-infrastructure-projects",
+   "date": "2026-07-31"
+  },
+  {
+   "title": "Heat networks pipelines",
+   "summary": "An overview of current and planned heat networks projects and procurements, including those supported by government funding.",
+   "source": "GOV.UK: Energy Security and Net Zero",
+   "url": "https://www.gov.uk/government/publications/heat-networks-pipelines",
+   "date": "2026-08-03"
+  },
+  {
+   "title": "NCSC statement in response to recent incidents resulting from frontier AI evaluations",
+   "summary": "A statement from Ollie Whitehouse, Chief Technology Officer at the NCSC, on AI security following recent incidents.",
+   "source": "NCSC news and reports",
+   "url": "https://www.ncsc.gov.uk/news/ncsc-statement-in-response-to-recent-incidents-resulting-from-frontier-ai-evaluations",
+   "date": "2026-08-04"
+  },
+  {
+   "title": "Cyber security breaches survey: 2026/2027",
+   "summary": "An annual survey about the experience and impacts of cyber breaches and attacks on organisations.",
+   "source": "GOV.UK: Science, Innovation and Technology",
+   "url": "https://www.gov.uk/government/publications/cyber-security-breaches-survey",
+   "date": "2026-08-13"
+  },
+  {
+   "title": "Biodiversity net gain: nationally significant infrastructure projects",
+   "summary": "Guidance about biodiversity net gain (BNG) for developers of nationally significant infrastructure projects (NSIPs).",
+   "source": "GOV.UK: Environment, Food and Rural Affairs",
+   "url": "https://www.gov.uk/guidance/biodiversity-net-gain-nationally-significant-infrastructure-projects",
+   "date": "2026-08-27"
+  },
+  {
+   "title": "NATO Submarine Rescue System conducts Exercise Flying Fish",
+   "summary": "The NATO submarine rescue system tests global RAF airlift capability in major exercise, keeping UK, France and Norway crews emergency ready.",
+   "source": "GOV.UK: Ministry of Defence",
+   "url": "https://www.gov.uk/government/news/nato-submarine-rescue-system-conducts-exercise-flying-fish",
+   "date": "2026-09-01"
+  },
+  {
+   "title": "UK summons Russian Chargé d'Affaires after reckless attack on Leipzig airport",
+   "summary": "The Foreign, Commonwealth and Development Office has summoned the Russian Charge D'affaires to condemn the recent drone attack in the strongest terms.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/news/uk-summons-russian-charge-daffaires-after-reckless-attack-on-leipzig-airport",
+   "date": "2026-09-03"
+  },
+  {
+   "title": "UK pledges winter air defence package to boost Ukraine's defences",
+   "summary": "The UK will supply air defence interceptors, large-calibre artillery rounds and drones to help Ukraine defend itself against barbaric Russian attacks this winter, as part of Britain’s commitment to help Ukraine defend its freedom and sovereignty.",
+   "source": "GOV.UK: Ministry of Defence",
+   "url": "https://www.gov.uk/government/news/uk-pledges-winter-air-defence-package-to-boost-ukraines-defences",
+   "date": "2026-09-08"
+  },
+  {
+   "title": "A negotiated settlement is the only long-term solution to the threat posed by Iran’s nuclear programme: UK statement at the UN Security Council",
+   "summary": "Statement by Ambassador Sarah MacIntosh, UK Permanent Representative to the UN, at the UN Security Council meeting on Iran.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/a-negotiated-settlement-is-the-only-long-term-solution-to-the-threat-posed-by-irans-nuclear-programme-uk-statement-at-the-un-security-council",
+   "date": "2026-09-10"
+  },
+  {
+   "title": "Responsible technology and resilience against hybrid threats: UK statement to the 32nd OSCE Economic and Environmental Forum",
+   "summary": "Ambassador Holland highlights responsible governance and multistakeholder cooperation are essential to harness frontier technologies while protecting human rights and public trust. The OSCE must strengthen early warning, address hybrid threats and support Ukraine’s recovery and resilience in the face of Russia’s illegal war.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/responsible-technology-and-resilience-against-hybrid-threats-uk-statement-to-the-32nd-osce-economic-and-environmental-forum",
+   "date": "2026-09-11"
+  },
+  {
+   "title": "Iranian cyber targeting of dissidents, activists and journalists",
+   "summary": "Advisory on CHOSEN BRICK malware, including technical analysis and advice to help individuals and organisations protect themselves.",
+   "source": "NCSC news and reports",
+   "url": "https://www.ncsc.gov.uk/news/iranian-cyber-targeting-of-dissidents-activists-and-journalists",
+   "date": "2026-09-15"
+  },
+  {
+   "title": "UK and allies expose spyware used by Iranian state actors to target dissidents, activists and journalists",
+   "summary": "UK and allies provide advice to help organisations and individuals at risk detect and counter the threat from CHOSEN BRICK malware.",
+   "source": "NCSC news and reports",
+   "url": "https://www.ncsc.gov.uk/news/uk-allies-expose-spyware-iranian-state-actors-target-dissidents-activists-journalists",
+   "date": "2026-09-15"
+  },
+  {
+   "title": "On the incident at Leipzig airport on 4th August: UK statement to the OSCE",
+   "summary": "Ambassador Holland expresses UK solidarity with Germany following Russia's reckless hybrid actions.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/on-the-incident-at-leipzig-airport-on-4th-august-uk-statement-to-the-osce",
+   "date": "2026-09-17"
+  },
+  {
+   "title": "Russia’s intensified attacks on Ukraine and their wider consequences: UK statement to the OSCE",
+   "summary": "Ambassador Holland highlights evidence that Russia has intensified its attacks on Ukraine, causing severe harm to civilians, infrastructure, trade and food security. The UK says sustained support for Ukraine and pressure on Russia should lead to serious negotiations and a just, lasting peace based on OSCE principles.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/russias-intensified-attacks-on-ukraine-and-their-wider-consequences-uk-statement-to-the-osce",
+   "date": "2026-09-17"
+  },
+  {
+   "title": "Russia’s threat extends beyond Ukraine: UK statement to the OSCE",
+   "summary": "UK Senior Military Advisor, Joby Rimmer, condemns Russia’s attack at Leipzig/Halle Airport and its intensified campaign against Ukraine, and calls for a just and lasting peace.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/russias-threat-extends-beyond-ukraine-uk-statement-to-the-osce",
+   "date": "2026-09-17"
+  },
+  {
+   "title": "Cyber Security Breaches Survey (CSBS) 2026/2027",
+   "summary": "The Cyber Security Breaches Survey (CSBS) is an annual UK Official Statistics publication that provides a comprehensive picture of cyber resilience, threats, breaches and attacks experienced by businesses, charities, and educational institutions, helping to inform government cyber security policy.",
+   "source": "GOV.UK: Home Office",
+   "url": "https://www.gov.uk/government/statistics/announcements/cyber-security-breaches-survey-csbs-20262027",
+   "date": "2026-09-21"
+  },
+  {
+   "title": "Russia is widening insecurity while refusing the path to peace: UK statement to the OSCE",
+   "summary": "Counsellor for Politico-Military Affairs, Arron Newble, says Russia’s intensified attacks on Ukraine and disruptive activity across Europe are not evidence of success, and calls on Russia to agree an immediate ceasefire and engage seriously in negotiations towards a just and lasting peace.",
+   "source": "GOV.UK: Foreign, Commonwealth and Development Office",
+   "url": "https://www.gov.uk/government/speeches/russia-is-widening-insecurity-while-refusing-the-path-to-peace-uk-statement-to-the-osce",
+   "date": "2026-09-24"
+  },
+  {
+   "title": "CEOs from sensitive sectors to receive briefings on Russia threats",
+   "summary": "CEOs from the most sensitive sectors of the economy will receive closed-door briefings on threats posed by Russia",
+   "source": "GOV.UK: Ministry of Defence",
+   "url": "https://www.gov.uk/government/news/ceos-from-sensitive-sectors-to-receive-briefings-on-russia-threats",
+   "date": "2026-09-25"
+  },
+  {
+   "title": "CEOs from sensitive sectors to receive briefings on Russia threats",
+   "summary": "CEOs from the most sensitive sectors of the economy will receive closed-door briefings on threats posed by Russia",
+   "source": "GOV.UK: Cabinet Office",
+   "url": "https://www.gov.uk/government/news/ceos-from-sensitive-sectors-to-receive-briefings-on-russia-threats",
+   "date": "2026-09-25"
+  },
+  {
+   "title": "Sixth powerful attack submarine departs Barrow-in-Furness for sea trials",
+   "summary": "UK and Euro-Atlantic security will soon be boosted, as the Royal Navy’s sixth powerful attack submarine departs from Barrow-in-Furness. ",
+   "source": "GOV.UK: Ministry of Defence",
+   "url": "https://www.gov.uk/government/news/sixth-powerful-attack-submarine-departs-barrow-in-furness-for-sea-trials",
+   "date": "2026-09-25"
+  }
+ ]
+}
