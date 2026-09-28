@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover
     import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODE_VERSION = "2026-09-21-pack-16"
+CODE_VERSION = "2026-09-28-fix-pack-4"
 UA = "Mozilla/5.0 (compatible; WaryBot/1.0; non-commercial; +https://wary.org.uk)"
 AREAS = ["energy", "cyber", "comms", "security", "military", "supply"]
 AREA_NAMES = {"energy": "Power, gas and fuel", "cyber": "Cyber attacks on services", "comms": "Cables, GPS and phone networks",
@@ -200,6 +200,11 @@ def accept_terror(found, contextual, last_known, state=None, now=None, hold_hour
 ALERTS_URL = "https://www.gov.uk/alerts"
 GRID_URL = "https://data.elexon.co.uk/bmrs/api/v1/system/warnings?format=json"
 GAS_URL = "https://www.nationalgas.com/balancing/margins-notices-and-gas-deficit-warnings"
+# Only the grid operator's genuine escalations. NOT a bare "demand control": every routine Electricity Margin Notice ends with the
+# stock line "Suppliers please advise ... of any additional Demand Control available", which is a request, not a warning.
+GRID_EMERGENCY = re.compile(r"demand control imminent|high risk of demand reduction|load shedding|rota (?:load )?disconnection|"
+                            r"demand disconnection|instruct\w* (?:of )?demand control|demand control (?:has been|is being|will be) instructed|"
+                            r"blackout|national electricity transmission system emergency", re.I)
 TERROR_TEXT = {"LOW": "An attack is highly unlikely.", "MODERATE": "An attack is possible but not likely.", "SUBSTANTIAL": "An attack is likely.",
                "SEVERE": "An attack is highly likely.", "CRITICAL": "An attack is highly likely in the near future."}
 
@@ -229,11 +234,12 @@ def check_grid(fixtures, now):
                 continue
             when = parse_dt(str(r.get("publishTime") or r.get("publishDateTime") or ""))
             text = clean(str(r.get("warningText") or r.get("warning") or r.get("text") or ""))
+            kind = clean(str(r.get("warningType") or ""))
             if when is None:
                 unread += 1
             elif now - when <= timedelta(hours=24):
                 recent.append(text)
-                if re.search(r"demand control|load shedding|blackout|national electricity transmission system emergency", text, re.I):
+                if GRID_EMERGENCY.search(f"{kind} {text}"):
                     emergency_at = max(emergency_at or when, when)
         if recent:
             if emergency_at:
@@ -945,8 +951,9 @@ def track_changes(prev, areas, area_changes, now):
     return out
 
 
-def level_changes(prev, areas, overall, now):
-    """An automatic change-log entry when any level moved since the last run. No previous run (or a lost cache) means no entry."""
+def level_changes(prev, areas, overall, now, corrections=()):
+    """An automatic change-log entry when any level moved since the last run. No previous run (or a lost cache) means no entry.
+    If a wrong rule was just retired, the entry says so first, so a drop is never left unexplained."""
     if not prev or "overall" not in prev:
         return []
     moved = [a for a in areas if prev.get("areas", {}).get(a["id"]) not in (None, a["level"])]
@@ -959,6 +966,9 @@ def level_changes(prev, areas, overall, now):
         title = "Area levels changed"
     lines = [f"{a['name']}: {LEVEL_NAMES[prev['areas'][a['id']]]} to {LEVEL_NAMES[a['level']]} ({BASIS_TEXT.get(a.get('basis'), 'the rules')})" for a in moved]
     text = "Automatic entry. " + ("; ".join(lines) + "." if lines else "Only the overall level moved.")
+    if corrections:        # the explanation goes first, so the 400-character limit can only ever trim the routine part
+        title = "Correction. " + title
+        text = "Correction: " + " ".join(c[0].upper() + c[1:] + "." for c in corrections) + " " + text
     return [{"date": now.strftime("%Y-%m-%d"), "level": overall, "title": title, "text": text[:400], "auto": True}]
 
 
@@ -1016,7 +1026,7 @@ def detect_triggers(items, checks, now):
     grid = (checks or {}).get("grid", {})
     if grid.get("state") == "alert":
         at = parse_dt(grid.get("at")) or now
-        found.append(_trigger("grid-alert", ["energy"], 4, "the grid operator's system warning mentions demand control or load shedding", "https://bmrs.elexon.co.uk/",
+        found.append(_trigger("grid-demand-control", ["energy"], 4, "the grid operator has warned of demand control or load shedding", "https://bmrs.elexon.co.uk/",
                               "Elexon BMRS", at, at + timedelta(hours=72), now))
     if cobr and attack_items:      # two separate official statements: an attack on the UK named AND COBR convened
         when, top = max(attack_items, key=lambda x: x[0])
@@ -1025,11 +1035,25 @@ def detect_triggers(items, checks, now):
     return found
 
 
+# Rules found to be wrong. A stored trigger from one of these is discarded at once instead of running to its expiry, and the change
+# log says why. Genuine triggers come only from the corrected rules, so they still keep their full life.
+RETIRED_TRIGGER_RULES = {
+    "grid-alert": "the High for Power, gas and fuel was a false alarm. A routine grid notice was misread as a demand-control warning, "
+                  "because of its standard line asking suppliers about spare demand control. The check now reads only real escalations",
+}
+
+
+def retired_triggers(stored):
+    return [t for t in (stored or {}).values() if isinstance(t, dict) and t.get("rule") in RETIRED_TRIGGER_RULES]
+
+
 def apply_triggers(detected, stored, now):
     """The memory. An accepted trigger stays active until ITS OWN expiry, even if a later fetch fails. It is never extended by being
-    seen again, and never kept past its expiry."""
+    seen again, and never kept past its expiry. Triggers from a retired (wrong) rule are dropped."""
     active = {}
     for tid, t in (stored or {}).items():
+        if isinstance(t, dict) and t.get("rule") in RETIRED_TRIGGER_RULES:
+            continue
         exp = parse_dt(t.get("expires"))
         if exp and exp > now and isinstance(t.get("areas"), list):
             active[tid] = t
@@ -1192,6 +1216,7 @@ def gather_official(src_doc, fixtures, now, last_terror=None, state=None, hold_h
         out.update(ni_effective=out["ni"], ni_live=True, ni_at=iso(now))
     else:
         out.update(ni_effective=st.get("ni_last") or last_ni, ni_live=False, ni_at=st.get("ni_last_at"))
+    out["corrections"] = sorted({RETIRED_TRIGGER_RULES[t["rule"]] for t in retired_triggers(st.get("triggers"))})
     out["triggers"] = apply_triggers(detect_triggers(trigger_items, out["checks"], now), st.get("triggers"), now)
     t_at = parse_dt(out.get("terror_at")) if out.get("terror_at") else None
     fresh = bool(out.get("terror_live") or (t_at and now - t_at <= timedelta(hours=3)))
@@ -1333,7 +1358,7 @@ def main():
           f"sources read: {feed['build']['sources_read']}, terrorism level read live: {feed['build']['terror_level_read']}, memory: {memory}")
     all_history = list(history)
     if not a.editorial_only:
-        new_entries = level_changes(state.get("levels_last"), feed["areas"], feed["overall"]["level"], now)
+        new_entries = level_changes(state.get("levels_last"), feed["areas"], feed["overall"]["level"], now, official.get("corrections", ()))
         auto_hist = (new_entries + state.get("auto_history", []))[:60]
         all_history = list(history) + auto_hist
         feed["history"] = sorted(all_history, key=lambda e: e["date"], reverse=True)[:12]
