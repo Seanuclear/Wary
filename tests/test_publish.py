@@ -1476,5 +1476,40 @@ class GridFalseAlarm(unittest.TestCase):
         self.assertNotIn("Correction", plain["title"] + plain["text"])
 
 
+class RealHeadlines(unittest.TestCase):
+    """The automatic-High rules read official headlines, and word-matching is fragile (see CLAUDE.md 7.1). This runs them over REAL
+    headlines from GOV.UK departments and the NCSC (28 Jun to 28 Sep 2026, tests/data/real_headlines_2026q3.json). None of them was an
+    emergency, so none may raise a level automatically."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(ROOT, "tests", "data", "real_headlines_2026q3.json"), encoding="utf-8") as f:
+            cls.items = json.load(f)["items"]
+        for i in cls.items:
+            i["cats"] = [a for a in publish.AREAS if publish.RX[a].search(f"{i['title']} {i['summary']}")]
+            if "NCSC" in i["source"] and "cyber" not in i["cats"]:
+                i["cats"].append("cyber")
+
+    def test_the_fixture_really_exercises_the_rules(self):
+        self.assertGreaterEqual(len(self.items), 30)
+        self.assertTrue(any(publish.NAT_SIG.search(i["title"]) for i in self.items))          # a near miss the rule must reject
+        self.assertTrue(any("NCSC" in i["source"] for i in self.items))
+
+    def test_no_real_headline_raises_cyber_or_cable_to_high(self):
+        for i in self.items:
+            self.assertFalse(publish.cyber_high(i), i["title"])
+            self.assertFalse(publish.cable_high(i), i["title"])
+
+    def test_no_real_headline_looks_like_an_attack_on_the_uk_or_a_cobr_meeting(self):
+        for i in self.items:
+            self.assertIsNone(publish.ATTACK_ON_UK.search(i["title"]), i["title"])
+            self.assertIsNone(re.search(r"\bCOBR\b", i["title"]), i["title"])
+
+    def test_no_real_headline_produces_an_automatic_trigger(self):
+        now = publish.now_utc()
+        live = [dict(i, date=(now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")) for i in self.items]     # pretend all are fresh
+        self.assertEqual(publish.detect_triggers(live, {}, now), [])
+
+
 if __name__ == "__main__":
     unittest.main()
