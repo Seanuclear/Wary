@@ -1366,7 +1366,9 @@ class BuiltSite(unittest.TestCase):
         self.assertIn("No cookies. No ads. No tracking.", self.page)
 
 
-# The real notice that caused the false High on 27-28 September 2026, verbatim from Elexon BMRS.
+# The real notice behind the false High on 27-28 September 2026, COMPLETE, as Elexon BMRS publishes it, including the Information Note
+# at the end. (An earlier fix was tested against a copy missing that note, and its "does not signal that blackouts are imminent" line
+# then caused a second false High.)
 REAL_EMN_2026_09_27 = """From : Power System Manager – NESO Electricity Control Centre ELECTRICITY MARGIN NOTICE An ELECTRICITY MARGIN NOTICE has been
 issued by the National Energy System Operator to encourage market actions to increase System Margins. For the period: from 16:00 hrs to
 19:00 hrs on Monday 28/09/2026 There is a reduced system margin. System margin shortfall 1400 MW The current contingency requirement is
@@ -1375,13 +1377,18 @@ instructed. Trading Points, Control Points and Externally interconnected System 
 Operator of any additional MW capacity. Suppliers please advise National Energy System Operator of any additional Demand Control available.
 The situation will be reviewed again by National Energy System Operator at 10:00 hours and an update issued. This Notification of Issue of
 a GB Transmission System Warning - ELECTRICITY MARGIN NOTICE Issued at 00:30 hrs on 28/09/2026 Issued by Power System Manager NESO
-Electricity Control Centre"""
+Electricity Control Centre ************** Information Note:- As the System Operator, National Energy System Operator are responsible for
+balancing the electricity system in the final hours before real-time. We have a number of routine tools we can use to help us do this,
+this toolkit includes ELECTRICITY MARGIN NOTICES. An ELECTRICITY MARGIN NOTICE is used to send a signal to the electricity market. It
+highlights that, in the short-term, we would like a greater safety cushion (margin) between power demand and available supply. It does
+not signal that blackouts are imminent or that there is not enough generation to meet current demand."""
 
 
 class GridFalseAlarm(unittest.TestCase):
-    """Regression guard for a real false alarm. A routine Electricity Margin Notice ends with a stock request for 'any additional Demand
-    Control available'. The old check matched the bare words 'demand control', raised Power to High for 72 hours, and so put the whole
-    site on High. Only the grid operator's genuine escalations may raise the level."""
+    """Regression guard for a real false alarm, twice over. A routine Electricity Margin Notice carries standard wording: a request for
+    'any additional Demand Control available', and a note that it 'does not signal that blackouts are imminent'. Word-searches matched
+    both, raised Power to High for 72 hours, and so put the whole site on High. The notice's own structured type is now trusted first,
+    and only the grid operator's genuine escalations may raise the level."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -1393,48 +1400,39 @@ class GridFalseAlarm(unittest.TestCase):
                                  "warningType": kind, "warningText": text}]}, f)
         return publish.check_grid(self.tmp, self.now)
 
-    def test_the_real_margin_notice_is_only_a_routine_notice(self):
-        c = self.grid(REAL_EMN_2026_09_27, "ELECTRICITY MARGIN NOTICE")
-        self.assertEqual(c["state"], "notice")
-        self.assertEqual(publish.detect_triggers([], {"grid": c}, self.now), [])
+    def test_the_complete_real_margin_notice_is_only_a_routine_notice(self):
+        self.assertIn("blackouts are imminent", REAL_EMN_2026_09_27)      # the fixture really is the complete notice
+        for kind in ("ELECTRICITY MARGIN NOTICE", ""):                  # with its type, and even if the type were missing
+            c = self.grid(REAL_EMN_2026_09_27, kind)
+            self.assertEqual(c["state"], "notice", kind or "no type")
+            self.assertEqual(publish.detect_triggers([], {"grid": c}, self.now), [])
+
+    def test_a_routine_notice_stays_routine_whatever_its_prose_mentions(self):
+        prose = "Should margins fall further, a HIGH RISK OF DEMAND REDUCTION or DEMAND CONTROL IMMINENT warning may follow."
+        self.assertEqual(self.grid(prose, "ELECTRICITY MARGIN NOTICE")["state"], "notice")
 
     def test_genuine_escalations_still_raise_the_alert(self):
         for kind, text in [("HIGH RISK OF DEMAND REDUCTION", "A HIGH RISK OF DEMAND REDUCTION has been issued."),
-                           ("DEMAND CONTROL IMMINENT", "DEMAND CONTROL IMMINENT for the period 17:00 to 19:00."),
+                           ("DEMAND CONTROL IMMINENT", "Demand Control Imminent for the period 17:00 to 19:00."),
+                           ("", "DEMAND CONTROL IMMINENT"),
                            ("", "NESO has instructed Demand Control in the following areas."),
-                           ("", "Rota load disconnection may be required."),
-                           ("", "Load shedding is expected tonight.")]:
+                           ("", "Rota load disconnection may be required.")]:
             c = self.grid(text, kind)
             self.assertEqual(c["state"], "alert", text)
-            t = publish.detect_triggers([], {"grid": c}, self.now)
-            self.assertEqual([x["rule"] for x in t], ["grid-demand-control-v2"], text)
+            x = publish.detect_triggers([], {"grid": c}, self.now)
+            self.assertEqual([x["rule"] for x in x], ["grid-escalation"], text)
 
     def test_the_warning_type_field_alone_is_enough(self):
         self.assertEqual(self.grid("See NESO for details.", "DEMAND CONTROL IMMINENT")["state"], "alert")
 
-    def test_a_routine_margin_notice_does_not_escalate_just_for_naming_the_escalation_stages(self):
-        text = REAL_EMN_2026_09_27 + " If conditions worsen, HIGH RISK OF DEMAND REDUCTION or DEMAND CONTROL IMMINENT may be issued."
-        c = self.grid(text, "ELECTRICITY MARGIN NOTICE")
-        self.assertEqual(c["state"], "notice")
-        self.assertEqual(publish.detect_triggers([], {"grid": c}, self.now), [])
-
-    def test_a_stored_false_alarm_is_discarded_at_once_not_kept_for_72_hours(self):
+    def test_stored_false_alarms_from_both_earlier_rules_are_discarded_at_once(self):
         at = self.now - timedelta(hours=7)
-        stored = {"grid-alert:https://bmrs.elexon.co.uk/": {"id": "grid-alert:https://bmrs.elexon.co.uk/", "rule": "grid-alert",
-                  "areas": ["energy"], "level": 4, "why": "x", "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS",
-                  "published": publish.iso(at), "accepted": publish.iso(at), "last_seen": publish.iso(at),
-                  "expires": publish.iso(at + timedelta(hours=72))}}
-        self.assertEqual(publish.apply_triggers([], stored, self.now), {})
-        self.assertEqual(len(publish.retired_triggers(stored)), 1)
-
-    def test_the_first_correction_trigger_is_also_retired_at_once(self):
-        at = self.now - timedelta(hours=1)
-        stored = {"grid-demand-control:https://bmrs.elexon.co.uk/": {"id": "grid-demand-control:https://bmrs.elexon.co.uk/",
-                  "rule": "grid-demand-control", "areas": ["energy"], "level": 4, "why": "x",
-                  "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS", "published": publish.iso(at),
-                  "accepted": publish.iso(at), "last_seen": publish.iso(at), "expires": publish.iso(at + timedelta(hours=72))}}
-        self.assertEqual(publish.apply_triggers([], stored, self.now), {})
-        self.assertEqual(len(publish.retired_triggers(stored)), 1)
+        for rule in ("grid-alert", "grid-demand-control"):
+            stored = {f"{rule}:x": {"id": f"{rule}:x", "rule": rule, "areas": ["energy"], "level": 4, "why": "x",
+                      "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS", "published": publish.iso(at),
+                      "accepted": publish.iso(at), "last_seen": publish.iso(at), "expires": publish.iso(at + timedelta(hours=72))}}
+            self.assertEqual(publish.apply_triggers([], stored, self.now), {}, rule)
+            self.assertEqual(len(publish.retired_triggers(stored)), 1, rule)
 
     def test_a_genuine_stored_trigger_still_keeps_its_full_life(self):
         c = self.grid("DEMAND CONTROL IMMINENT", "DEMAND CONTROL IMMINENT", hours=2)
@@ -1442,11 +1440,13 @@ class GridFalseAlarm(unittest.TestCase):
         later = self.now + timedelta(hours=48)
         self.assertEqual(len(publish.apply_triggers([], stored, later)), 1)       # still there two days later, even with no new data
 
-    def test_the_change_log_explains_the_correction(self):
+    def test_the_change_log_explains_the_correction_once(self):
         prev = {"overall": 4, "areas": {"energy": 4, "security": 3}}
         areas = [{"id": "energy", "name": "Power, gas and fuel", "level": 2, "basis": "decayed"},
                  {"id": "security", "name": "Terrorism and sabotage", "level": 3, "basis": "official"}]
-        e = publish.level_changes(prev, areas, 3, self.now, [publish.RETIRED_TRIGGER_RULES["grid-alert"]])[0]
+        notes = sorted(set(publish.RETIRED_TRIGGER_RULES.values()))
+        self.assertEqual(len(notes), 1)                                          # both retired rules share one explanation
+        e = publish.level_changes(prev, areas, 3, self.now, notes)[0]
         self.assertTrue(e["title"].startswith("Correction."))
         self.assertTrue(e["text"].startswith("Correction: The High for Power, gas and fuel was a false alarm."))
         self.assertLessEqual(len(e["text"]), 400)
