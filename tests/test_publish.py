@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from datetime import timedelta
 from email.utils import format_datetime
+from urllib.parse import urlsplit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
@@ -101,7 +102,7 @@ class Build(unittest.TestCase):
         self.assertEqual(self.feed["weather"]["UK"], [])
 
     def test_unavailable_sources_are_reported_not_fatal(self):
-        self.assertIn("GOV.UK: Home Office", self.feed["data_issues"])
+        self.assertTrue(any(i.startswith("GOV.UK: Home Office") for i in self.feed["data_issues"]), self.feed["data_issues"])
 
     def test_level_five_never_automatic(self):
         self.assertTrue(all(a["level"] <= 4 for a in self.feed["areas"]))
@@ -325,6 +326,9 @@ class SpaceWeather(unittest.TestCase):
 class LowTouch(unittest.TestCase):
     """Automatic escalation: official triggers only, 72 hours, never level 5."""
 
+    # cyber_high needs a current incident, a public impact and UK relevance; "nationally significant" alone is not enough.
+    REAL = "NCSC statement on a nationally significant cyber incident affecting NHS hospitals"
+
     def setUp(self):
         self.now = publish.now_utc()
         self.base = fresh_baseline()
@@ -334,7 +338,7 @@ class LowTouch(unittest.TestCase):
                 "date": (self.now - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"), "background": False}
 
     def test_nationally_significant_cyber_incident_lifts_cyber_to_high(self):
-        bumps, _, _ = publish.auto_rules([self.item("NCSC statement on a nationally significant incident")], {}, self.now)
+        bumps, _, _ = publish.auto_rules([self.item(self.REAL)], {}, self.now)
         self.assertEqual(bumps["cyber"][0], 4)
 
     def test_routine_headline_does_nothing(self):
@@ -342,7 +346,7 @@ class LowTouch(unittest.TestCase):
         self.assertEqual((bumps, notices), ({}, []))
 
     def test_old_trigger_expires_after_72_hours(self):
-        bumps, _, _ = publish.auto_rules([self.item("nationally significant incident", hours=80)], {}, self.now)
+        bumps, _, _ = publish.auto_rules([self.item(self.REAL, hours=80)], {}, self.now)
         self.assertEqual(bumps, {})
 
     def test_cobr_gives_a_notice_but_changes_no_level(self):
@@ -578,6 +582,9 @@ class FallBack(unittest.TestCase):
 
 
 class Cables(unittest.TestCase):
+    # cable_high needs damage AND a real UK connection; a bare "UK" (a UK statement about a Baltic cable) is not enough.
+    REAL = "Ministry of Defence statement on damage to an undersea cable serving the UK"
+
     def setUp(self):
         self.now = publish.now_utc()
         self.tmp = tempfile.mkdtemp()
@@ -587,7 +594,7 @@ class Cables(unittest.TestCase):
                 "date": (self.now - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"), "background": False}
 
     def test_official_statement_about_damage_to_a_cable_lifts_comms(self):
-        bumps, _, _ = publish.auto_rules([self.item("Ministry of Defence statement on damage to an undersea cable")], {}, self.now)
+        bumps, _, _ = publish.auto_rules([self.item(self.REAL)], {}, self.now)
         self.assertEqual(bumps["comms"][0], 4)
 
     def test_cable_headline_without_damage_does_nothing(self):
@@ -595,7 +602,7 @@ class Cables(unittest.TestCase):
             self.assertEqual(publish.auto_rules([self.item(title)], {}, self.now)[0], {}, title)
 
     def test_old_cable_statement_expires(self):
-        self.assertEqual(publish.auto_rules([self.item("Damage to undersea cable", hours=80)], {}, self.now)[0], {})
+        self.assertEqual(publish.auto_rules([self.item(self.REAL, hours=80)], {}, self.now)[0], {})
 
     def put(self, obj):
         with open(os.path.join(self.tmp, "internet.json"), "w") as f:
@@ -967,28 +974,37 @@ class Workflow(unittest.TestCase):
         self.assertEqual(cron.split()[1:], ["*", "*", "*", "*"])
 
     def test_has_a_keep_alive_that_can_never_block_publishing(self):
-        step = self.text[self.text.index("Keep the schedule alive"):self.text.index("configure-pages")]
-        self.assertIn("continue-on-error: true", step)
-        self.assertIn("git commit --allow-empty", step)
-        self.assertIn("-ge 40", step)                       # well inside GitHub's 60 days
-        self.assertIn("github.event_name == 'schedule'", step)
+        # A separate, tiny workflow, so the build itself never needs write permission and a keep-alive problem can never stop publishing.
+        keep = open(os.path.join(ROOT, ".github", "workflows", "keepalive.yml"), encoding="utf-8").read()
+        self.assertIn("schedule:", keep)
+        self.assertIn("git commit --allow-empty", keep)
+        self.assertIn("-ge 40", keep)                       # well inside GitHub's 60 days
+        self.assertNotIn("git commit", self.text)           # and the build itself never writes to the repository
+        self.assertNotIn("git push", self.text)
 
-    def test_write_access_is_limited_to_the_build_job(self):
+    def test_write_access_is_limited_to_the_keep_alive(self):
         top = self.text[:self.text.index("jobs:")]
         self.assertIn("contents: read", top)
         self.assertNotIn("write", top.split("permissions:")[1])
         build = self.text[self.text.index("  build:"):self.text.index("  deploy:")]
         deploy = self.text[self.text.index("  deploy:"):]
-        self.assertIn("contents: write", build)
-        self.assertNotIn("contents: write", deploy)
+        self.assertIn("contents: read", build)
+        self.assertNotIn("contents: write", self.text)
         self.assertIn("id-token: write", deploy)
 
     def test_the_self_checks_can_never_stop_the_site_publishing(self):
-        step = self.text[self.text.index("Run the self-checks"):self.text.index("Build the site")]
+        step = self.text[self.text.index("Wider self-checks"):self.text.index("Build the site")]
         self.assertIn("continue-on-error: true", step)
+        self.assertIn("test_publish.py", step)
+
+    def test_safety_checks_run_before_the_build_and_block_it(self):
+        step = self.text[self.text.index("Safety checks"):self.text.index("Explain a safety failure")]
+        self.assertIn("test_safety.py", step)
+        self.assertNotIn("continue-on-error", step)
+        self.assertLess(self.text.index("Safety checks"), self.text.index("Build the site"))
 
     def test_it_warns_in_plain_english_about_misplaced_files(self):
-        step = self.text[self.text.index("Check the files are in the right folders"):self.text.index("Run the self-checks")]
+        step = self.text[self.text.index("Check the files are in the right folders"):self.text.index("Safety checks")]
         self.assertIn("continue-on-error: true", step)
         for name in ("publish.py", "build_site.py", "signals.json", "tools/publish.py", "editorial/signals.json"):
             self.assertIn(name, step)
@@ -1352,8 +1368,13 @@ class BuiltSite(unittest.TestCase):
     def test_csp_only_allows_the_two_lookup_services(self):
         csp = re.search(r'Content-Security-Policy" content="([^"]+)"', self.page).group(1)
         self.assertIn("default-src 'none'", csp)
-        hosts = set(re.findall(r"https://[a-z.]+", csp))
-        self.assertEqual(hosts, {"https://api.postcodes.io", "https://environment.data.gov.uk"})
+        hosts = set(re.findall(r"https://[a-z0-9.-]+", csp))
+        allowed = {"https://api.postcodes.io", "https://environment.data.gov.uk"}
+        counter = json.load(open(os.path.join(ROOT, "site.json"), encoding="utf-8")).get("counter_url", "").strip()
+        if counter:                                          # the optional visit counter's own origin, and nothing else
+            u = urlsplit(counter)
+            allowed.add(f"{u.scheme}://{u.netloc}")
+        self.assertEqual(hosts, allowed)
 
     def test_no_cookie_writes_in_code(self):
         self.assertNotIn("document.cookie", self.page)
