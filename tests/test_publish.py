@@ -1366,5 +1366,79 @@ class BuiltSite(unittest.TestCase):
         self.assertIn("No cookies. No ads. No tracking.", self.page)
 
 
+# The real notice that caused the false High on 27-28 September 2026, verbatim from Elexon BMRS.
+REAL_EMN_2026_09_27 = """From : Power System Manager – NESO Electricity Control Centre ELECTRICITY MARGIN NOTICE An ELECTRICITY MARGIN NOTICE has been
+issued by the National Energy System Operator to encourage market actions to increase System Margins. For the period: from 16:00 hrs to
+19:00 hrs on Monday 28/09/2026 There is a reduced system margin. System margin shortfall 1400 MW The current contingency requirement is
+700 MW. 1900 MW of generation is excluded from the available system margin due to system constraints. Maximum Generation Service may be
+instructed. Trading Points, Control Points and Externally interconnected System Operators are requested to notify National Energy System
+Operator of any additional MW capacity. Suppliers please advise National Energy System Operator of any additional Demand Control available.
+The situation will be reviewed again by National Energy System Operator at 10:00 hours and an update issued. This Notification of Issue of
+a GB Transmission System Warning - ELECTRICITY MARGIN NOTICE Issued at 00:30 hrs on 28/09/2026 Issued by Power System Manager NESO
+Electricity Control Centre"""
+
+
+class GridFalseAlarm(unittest.TestCase):
+    """Regression guard for a real false alarm. A routine Electricity Margin Notice ends with a stock request for 'any additional Demand
+    Control available'. The old check matched the bare words 'demand control', raised Power to High for 72 hours, and so put the whole
+    site on High. Only the grid operator's genuine escalations may raise the level."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.now = publish.now_utc()
+
+    def grid(self, text, kind="", hours=1):
+        with open(os.path.join(self.tmp, "grid.json"), "w") as f:
+            json.dump({"data": [{"publishTime": (self.now - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                 "warningType": kind, "warningText": text}]}, f)
+        return publish.check_grid(self.tmp, self.now)
+
+    def test_the_real_margin_notice_is_only_a_routine_notice(self):
+        c = self.grid(REAL_EMN_2026_09_27, "ELECTRICITY MARGIN NOTICE")
+        self.assertEqual(c["state"], "notice")
+        self.assertEqual(publish.detect_triggers([], {"grid": c}, self.now), [])
+
+    def test_genuine_escalations_still_raise_the_alert(self):
+        for kind, text in [("HIGH RISK OF DEMAND REDUCTION", "A HIGH RISK OF DEMAND REDUCTION has been issued."),
+                           ("DEMAND CONTROL IMMINENT", "DEMAND CONTROL IMMINENT for the period 17:00 to 19:00."),
+                           ("", "NESO has instructed Demand Control in the following areas."),
+                           ("", "Rota load disconnection may be required."),
+                           ("", "Load shedding is expected tonight.")]:
+            c = self.grid(text, kind)
+            self.assertEqual(c["state"], "alert", text)
+            t = publish.detect_triggers([], {"grid": c}, self.now)
+            self.assertEqual([x["rule"] for x in t], ["grid-demand-control"], text)
+
+    def test_the_warning_type_field_alone_is_enough(self):
+        self.assertEqual(self.grid("See NESO for details.", "DEMAND CONTROL IMMINENT")["state"], "alert")
+
+    def test_a_stored_false_alarm_is_discarded_at_once_not_kept_for_72_hours(self):
+        at = self.now - timedelta(hours=7)
+        stored = {"grid-alert:https://bmrs.elexon.co.uk/": {"id": "grid-alert:https://bmrs.elexon.co.uk/", "rule": "grid-alert",
+                  "areas": ["energy"], "level": 4, "why": "x", "url": "https://bmrs.elexon.co.uk/", "source": "Elexon BMRS",
+                  "published": publish.iso(at), "accepted": publish.iso(at), "last_seen": publish.iso(at),
+                  "expires": publish.iso(at + timedelta(hours=72))}}
+        self.assertEqual(publish.apply_triggers([], stored, self.now), {})
+        self.assertEqual(len(publish.retired_triggers(stored)), 1)
+
+    def test_a_genuine_stored_trigger_still_keeps_its_full_life(self):
+        c = self.grid("DEMAND CONTROL IMMINENT", "DEMAND CONTROL IMMINENT", hours=2)
+        stored = publish.apply_triggers(publish.detect_triggers([], {"grid": c}, self.now), {}, self.now)
+        later = self.now + timedelta(hours=48)
+        self.assertEqual(len(publish.apply_triggers([], stored, later)), 1)       # still there two days later, even with no new data
+
+    def test_the_change_log_explains_the_correction(self):
+        prev = {"overall": 4, "areas": {"energy": 4, "security": 3}}
+        areas = [{"id": "energy", "name": "Power, gas and fuel", "level": 2, "basis": "decayed"},
+                 {"id": "security", "name": "Terrorism and sabotage", "level": 3, "basis": "official"}]
+        e = publish.level_changes(prev, areas, 3, self.now, [publish.RETIRED_TRIGGER_RULES["grid-alert"]])[0]
+        self.assertTrue(e["title"].startswith("Correction."))
+        self.assertTrue(e["text"].startswith("Correction: The High for Power, gas and fuel was a false alarm."))
+        self.assertLessEqual(len(e["text"]), 400)
+        self.assertEqual(publish.validate_history([dict(e, auto=False)]), [])
+        plain = publish.level_changes(prev, areas, 3, self.now)[0]
+        self.assertNotIn("Correction", plain["title"] + plain["text"])
+
+
 if __name__ == "__main__":
     unittest.main()
