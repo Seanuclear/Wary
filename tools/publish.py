@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover
     import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODE_VERSION = "2026-09-28-fix-pack-4b"
+CODE_VERSION = "2026-09-28-fix-pack-5"
 UA = "Mozilla/5.0 (compatible; WaryBot/1.0; non-commercial; +https://wary.org.uk)"
 AREAS = ["energy", "cyber", "comms", "security", "military", "supply"]
 AREA_NAMES = {"energy": "Power, gas and fuel", "cyber": "Cyber attacks on services", "comms": "Cables, GPS and phone networks",
@@ -200,14 +200,23 @@ def accept_terror(found, contextual, last_known, state=None, now=None, hold_hour
 ALERTS_URL = "https://www.gov.uk/alerts"
 GRID_URL = "https://data.elexon.co.uk/bmrs/api/v1/system/warnings?format=json"
 GAS_URL = "https://www.nationalgas.com/balancing/margins-notices-and-gas-deficit-warnings"
-# Only the grid operator's genuine escalations. NOT a bare "demand control": every routine Electricity Margin Notice ends with the
-# stock line "Suppliers please advise ... of any additional Demand Control available", which is a request, not a warning.
-# The warning type is structured data, so use it for the two named escalation stages. Do not infer either stage merely because
-# its name appears somewhere in a routine Electricity Margin Notice's prose. Text matching is reserved for explicit actions/events.
-GRID_EMERGENCY_TYPE = re.compile(r"^(?:high risk of demand reduction|demand control imminent)$", re.I)
-GRID_EMERGENCY_TEXT = re.compile(r"load shedding|rota (?:load )?disconnection|demand disconnection|"
-                                 r"instruct\w* (?:of )?demand control|demand control (?:has been|is being|will be) instructed|"
-                                 r"blackout|national electricity transmission system emergency", re.I)
+# Only the grid operator's genuine escalations raise an alert, and the notice's own structured type is trusted first. Routine notices
+# carry standard wording that a word-search misreads: every Electricity Margin Notice asks suppliers about "any additional Demand
+# Control available", and its Information Note says it "does not signal that blackouts are imminent". Both caused false Highs.
+GRID_ESCALATION = re.compile(r"high risk of demand reduction|demand control imminent|instruct\w* (?:of )?demand control|"
+                             r"demand control (?:has been|is being|will be) instructed|rota (?:load )?disconnection|demand disconnection|"
+                             r"national electricity transmission system emergency", re.I)
+GRID_ROUTINE_TYPE = re.compile(r"margin notice|capacity market|nrapm|negative reserve|information", re.I)
+
+
+def grid_is_escalation(kind, text):
+    """kind is Elexon's own warningType. An escalation type is an alert; a routine type is routine whatever its prose says;
+    only a notice with no type (or one we do not recognise) is judged on its text, and then only on named escalation stages."""
+    if kind and GRID_ESCALATION.search(kind):
+        return True
+    if kind and GRID_ROUTINE_TYPE.search(kind):
+        return False
+    return bool(GRID_ESCALATION.search(text))
 TERROR_TEXT = {"LOW": "An attack is highly unlikely.", "MODERATE": "An attack is possible but not likely.", "SUBSTANTIAL": "An attack is likely.",
                "SEVERE": "An attack is highly likely.", "CRITICAL": "An attack is highly likely in the near future."}
 
@@ -242,7 +251,7 @@ def check_grid(fixtures, now):
                 unread += 1
             elif now - when <= timedelta(hours=24):
                 recent.append(text)
-                if GRID_EMERGENCY_TYPE.search(kind) or GRID_EMERGENCY_TEXT.search(text):
+                if grid_is_escalation(kind, text):
                     emergency_at = max(emergency_at or when, when)
         if recent:
             if emergency_at:
@@ -1029,7 +1038,7 @@ def detect_triggers(items, checks, now):
     grid = (checks or {}).get("grid", {})
     if grid.get("state") == "alert":
         at = parse_dt(grid.get("at")) or now
-        found.append(_trigger("grid-demand-control-v2", ["energy"], 4, "the grid operator has warned of demand control or load shedding", "https://bmrs.elexon.co.uk/",
+        found.append(_trigger("grid-escalation", ["energy"], 4, "the grid operator has warned of demand control or load shedding", "https://bmrs.elexon.co.uk/",
                               "Elexon BMRS", at, at + timedelta(hours=72), now))
     if cobr and attack_items:      # two separate official statements: an attack on the UK named AND COBR convened
         when, top = max(attack_items, key=lambda x: x[0])
@@ -1040,13 +1049,10 @@ def detect_triggers(items, checks, now):
 
 # Rules found to be wrong. A stored trigger from one of these is discarded at once instead of running to its expiry, and the change
 # log says why. Genuine triggers come only from the corrected rules, so they still keep their full life.
-RETIRED_TRIGGER_RULES = {
-    "grid-alert": "the High for Power, gas and fuel was a false alarm. A routine grid notice was misread as a demand-control warning, "
-                  "because of its standard line asking suppliers about spare demand control. The check now reads only real escalations",
-    "grid-demand-control": "the High for Power, gas and fuel was a false alarm. The first correction still allowed escalation-stage wording "
-                           "inside a routine grid notice to count as an emergency. The check now uses the warning type for those stages and "
-                           "only explicit actions or events from the notice text",
-}
+GRID_FALSE_ALARM = ("the High for Power, gas and fuel was a false alarm. A routine grid notice was misread as an emergency warning because "
+                    "of its standard wording, which asks suppliers about spare demand control and says it does not signal blackouts. The check "
+                    "now trusts the notice's own type")
+RETIRED_TRIGGER_RULES = {"grid-alert": GRID_FALSE_ALARM, "grid-demand-control": GRID_FALSE_ALARM}
 
 
 def retired_triggers(stored):
