@@ -18,7 +18,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: pages
+  group: pages-publish           # renamed from "pages" on 11 Nov 2026: run 2633's deploy was stuck "waiting" and its old lock blocked every later run.
   cancel-in-progress: false      # never cancel a deployment half way: that can wedge GitHub Pages. New runs wait their turn instead.
 jobs:
   build:
